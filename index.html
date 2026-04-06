@@ -227,6 +227,73 @@
     color: var(--text);
     margin: 0;
   }
+  /* Stacked bar visualization */
+  .stacks-grid {
+    display: grid;
+    grid-template-columns: 140px repeat(5, 1fr);
+    gap: 0;
+    font-size: 11px;
+  }
+  .stacks-grid .row-label {
+    padding: 8px 10px 8px 0;
+    font-weight: 600;
+    color: #555;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+  }
+  .stacks-grid .bdc-col {
+    padding: 8px 6px;
+    border-bottom: 1px solid #eee;
+    text-align: center;
+  }
+  .stacks-grid .bdc-header {
+    font-weight: 700;
+    color: #333;
+    font-size: 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #ddd;
+  }
+  .stacked-bar {
+    position: relative;
+    height: 180px;
+    width: 100%;
+    display: flex;
+    flex-direction: column-reverse;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid #ddd;
+  }
+  .bar-seg {
+    position: relative;
+    min-height: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 600;
+    color: #fff;
+    text-shadow: 0 0 3px rgba(0,0,0,0.3);
+    overflow: hidden;
+    cursor: default;
+  }
+  .bar-seg span { white-space: nowrap; }
+  .bar-total {
+    font-size: 11px;
+    font-weight: 600;
+    color: #555;
+    margin-top: 4px;
+  }
+  .section-divider {
+    grid-column: 1 / -1;
+    padding: 10px 0 4px;
+    font-weight: 700;
+    font-size: 12px;
+    color: #333;
+    border-bottom: 2px solid #ccc;
+    margin-top: 8px;
+  }
+
   .expand-panel {
     background: var(--card-bg);
     border: 1px solid var(--border);
@@ -549,9 +616,10 @@
       <div id="waterfallTable"></div>
     </div>
 
-    <div class="table-wrap">
-      <h3>Top 20 Most Impacted Companies</h3>
-      <div id="topCompaniesContainer"></div>
+    <div class="stacks-section" style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:24px">
+      <h3 style="font-size:14px;font-weight:600;margin-bottom:4px">Portfolio & Capital Structure Comparison</h3>
+      <p style="font-size:11px;color:#888;margin-bottom:16px">All values shown as % of total enterprise value (total assets). Hover for dollar amounts.</p>
+      <div id="stacksContainer"></div>
     </div>
   </div>
 
@@ -5672,25 +5740,13 @@ function recalculate() {
   document.getElementById('cardLossPct').textContent = fmtPct(lossPct);
   document.getElementById('cardPostFV').textContent = fmtDollar(postFV);
 
-  // Compute top companies (only needed for full update)
-  const allCompanies = [];
-  for (const ticker of c.tickers) {
-    for (const co of DATA.portfolios[ticker].top_companies) {
-      const loss = calcCompanyLoss(co);
-      allCompanies.push({
-        name: co.name, ticker, sector: co.sector,
-        by_type: co.by_type, total_fv: co.total_fv,
-        loss, lossPct: co.total_fv > 0 ? (loss / co.total_fv) * 100 : 0
-      });
-    }
-  }
 
   updateSeniorityChart(c.lossBySeniority, c.fvBySeniority);
   updateSectorChart(c.lossBySector, c.fvBySector);
   updateBDCChart(c.fvByBDC, c.lossByBDC);
   updateNetImpactCharts();
   updateWaterfall(c.lossByBDC);
-  updateTopCompanies(allCompanies);
+  updateStacks();
 }
 
 // ======== CHARTS ========
@@ -6307,38 +6363,157 @@ function updateWaterfall(lossByBDC) {
   container.innerHTML = html;
 }
 
-// ======== TOP COMPANIES TABLE ========
-function updateTopCompanies(allCompanies) {
-  const container = document.getElementById('topCompaniesContainer');
-  const sorted = allCompanies.filter(c => c.loss > 0).sort((a, b) => b.loss - a.loss).slice(0, 20);
+// ======== STACKED BAR VISUALIZATION ========
+function updateStacks() {
+  const container = document.getElementById('stacksContainer');
+  if (!container) return;
+  const tickers = DATA.tickers;
+  const cs = DATA.capital_structure;
+  const c = _computed;
+  if (!c || !cs) return;
 
-  if (sorted.length === 0) {
-    container.innerHTML = '<div class="empty-state">No losses at current settings</div>';
-    return;
+  function fmtS(n) {
+    if (n == null || isNaN(n)) return '--';
+    const abs = Math.abs(n);
+    if (abs >= 1e9) return '$' + (abs / 1e9).toFixed(1) + 'B';
+    return '$' + (abs / 1e6).toFixed(0) + 'M';
   }
 
-  const showBDC = selectedBDC === 'ALL';
-  let html = '<table class="data-table"><thead><tr>';
-  html += '<th>#</th><th>Company</th>';
-  if (showBDC) html += '<th>BDC</th>';
-  html += '<th>Sector</th><th>Types</th><th class="right">FV</th><th class="right">Est. Loss</th><th class="right">Loss %</th>';
-  html += '</tr></thead><tbody>';
+  function buildBar(segments, total) {
+    // segments: [{label, value, color}]
+    let html = '<div class="stacked-bar">';
+    for (const seg of segments) {
+      const pct = total > 0 ? (seg.value / total) * 100 : 0;
+      if (pct < 0.3) continue;
+      const label = pct > 5 ? `<span>${seg.label} ${pct.toFixed(0)}%</span>` : '';
+      html += `<div class="bar-seg" style="height:${pct}%;background:${seg.color}" title="${seg.label}: ${fmtS(seg.value)} (${pct.toFixed(1)}% of EV)">${label}</div>`;
+    }
+    html += '</div>';
+    html += `<div class="bar-total">${fmtS(total)}</div>`;
+    return html;
+  }
 
-  sorted.forEach((c, i) => {
-    const types = Object.keys(c.by_type).filter(t => c.by_type[t] > 0);
-    const badges = types.map(t => `<span class="badge" style="background:${SENIORITY_COLORS[t] || '#999'}">${t}</span>`).join('');
-    html += '<tr>';
-    html += `<td>${i + 1}</td>`;
-    html += `<td>${c.name}</td>`;
-    if (showBDC) html += `<td><span class="badge" style="background:${BDC_COLORS[c.ticker] || '#999'}">${c.ticker}</span></td>`;
-    html += `<td>${c.sector || '--'}</td>`;
-    html += `<td>${badges}</td>`;
-    html += `<td class="right">${fmtDollar(c.total_fv)}</td>`;
-    html += `<td class="right" style="color:#c0392b;font-weight:600">${fmtDollar(c.loss)}</td>`;
-    html += `<td class="right" style="color:#c0392b">${fmtPct(c.lossPct)}</td>`;
-    html += '</tr>';
-  });
-  html += '</tbody></table>';
+  // Seniority order and colors
+  const senOrder = ['1L', 'Unitranche', 'Revolver', 'DDTL', 'ABF', '2L', 'Bond', 'Unsecured', 'Preferred', 'Equity', 'JV', 'CLO', 'Unknown'];
+
+  let html = '<div class="stacks-grid">';
+
+  // Header row
+  html += '<div class="row-label"></div>';
+  for (const t of tickers) html += `<div class="bdc-col bdc-header">${t}</div>`;
+
+  // ── Row 1: Assets by Seniority (Pre-Stress) ──
+  html += '<div class="section-divider">Assets by Seniority</div>';
+  html += '<div class="row-label">Pre-Stress</div>';
+  for (const t of tickers) {
+    const p = DATA.portfolios[t];
+    const cap = cs[t];
+    const ev = cap ? cap.total_assets : p.total_fv;
+    const segs = [];
+    for (const s of senOrder) {
+      const fv = p.by_seniority[s] ? p.by_seniority[s].fair_value : 0;
+      if (fv > 0) segs.push({label: s, value: fv, color: SENIORITY_COLORS[s] || '#999'});
+    }
+    // Add cash & other non-investment assets
+    if (cap && cap.non_investment_assets > 0) {
+      segs.push({label: 'Cash & Other', value: cap.non_investment_assets, color: '#b0b0a8'});
+    }
+    html += '<div class="bdc-col">' + buildBar(segs, ev) + '</div>';
+  }
+
+  // ── Row 2: Assets by Seniority (Post-Stress) ──
+  html += '<div class="row-label">Post-Stress</div>';
+  for (const t of tickers) {
+    const p = DATA.portfolios[t];
+    const cap = cs[t];
+    const ev = cap ? cap.total_assets : p.total_fv;
+    const loss = c.lossByBDC[t] || 0;
+    const totalFV = p.total_fv;
+    const lossPct = totalFV > 0 ? loss / totalFV : 0;
+    const segs = [];
+    for (const s of senOrder) {
+      const origFV = p.by_seniority[s] ? p.by_seniority[s].fair_value : 0;
+      const postFV = origFV * (1 - lossPct);
+      if (postFV > 0) segs.push({label: s, value: postFV, color: SENIORITY_COLORS[s] || '#999'});
+    }
+    if (cap && cap.non_investment_assets > 0) {
+      segs.push({label: 'Cash & Other', value: cap.non_investment_assets, color: '#b0b0a8'});
+    }
+    html += '<div class="bdc-col">' + buildBar(segs, ev) + '</div>';
+  }
+
+  // ── Row 3: Assets by Sector (Pre-Stress) ──
+  html += '<div class="section-divider">Assets by Sector</div>';
+  html += '<div class="row-label">Pre-Stress</div>';
+  for (const t of tickers) {
+    const p = DATA.portfolios[t];
+    const cap = cs[t];
+    const ev = cap ? cap.total_assets : p.total_fv;
+    const segs = [];
+    for (const s of DATA.sectors) {
+      const fv = p.by_sector[s] ? p.by_sector[s].fair_value : 0;
+      if (fv > 0) segs.push({label: s.replace(' & ', '/'), value: fv, color: SECTOR_COLORS[s] || '#999'});
+    }
+    if (cap && cap.non_investment_assets > 0) {
+      segs.push({label: 'Cash & Other', value: cap.non_investment_assets, color: '#b0b0a8'});
+    }
+    html += '<div class="bdc-col">' + buildBar(segs, ev) + '</div>';
+  }
+
+  // ── Row 4: Assets by Sector (Post-Stress) ──
+  html += '<div class="row-label">Post-Stress</div>';
+  for (const t of tickers) {
+    const p = DATA.portfolios[t];
+    const cap = cs[t];
+    const ev = cap ? cap.total_assets : p.total_fv;
+    const totalFV = p.total_fv;
+    const segs = [];
+    for (const sec of DATA.sectors) {
+      const origFV = p.by_sector[sec] ? p.by_sector[sec].fair_value : 0;
+      if (origFV <= 0) continue;
+      // Apply sector+seniority combined loss for this sector
+      let secLoss = 0;
+      const secRate = (sectorRates[sec] || 0) / 100;
+      const sxs = p.sector_x_seniority[sec];
+      if (sxs) {
+        for (const sen in sxs) {
+          const senRate = (seniorityRates[sen] || 0) / 100;
+          const combined = 1 - (1 - senRate) * (1 - secRate);
+          secLoss += (sxs[sen] || 0) * combined;
+        }
+      }
+      const postFV = origFV - secLoss;
+      if (postFV > 0) segs.push({label: sec.replace(' & ', '/'), value: postFV, color: SECTOR_COLORS[sec] || '#999'});
+    }
+    if (cap && cap.non_investment_assets > 0) {
+      segs.push({label: 'Cash & Other', value: cap.non_investment_assets, color: '#b0b0a8'});
+    }
+    html += '<div class="bdc-col">' + buildBar(segs, ev) + '</div>';
+  }
+
+  // ── Row 5: Capital Stack (Liabilities + Equity) ──
+  html += '<div class="section-divider">Capital Stack (Liabilities & Equity)</div>';
+  html += '<div class="row-label">Current</div>';
+  for (const t of tickers) {
+    const cap = cs[t];
+    if (!cap) { html += '<div class="bdc-col">--</div>'; continue; }
+    const ev = cap.total_assets;
+    const segs = [];
+    // Break secured into CLOs vs credit facilities
+    let cloAmt = 0, creditAmt = 0;
+    for (const inst of cap.secured_instruments || []) {
+      if (inst.type === 'clo') cloAmt += inst.amount;
+      else creditAmt += inst.amount;
+    }
+    if (creditAmt > 0) segs.push({label: 'Secured Credit', value: creditAmt, color: '#4A7FB5'});
+    if (cloAmt > 0) segs.push({label: 'CLOs', value: cloAmt, color: '#5E9BD4'});
+    if (cap.unsecured_debt > 0) segs.push({label: 'Sr Unsecured', value: cap.unsecured_debt, color: '#D4A76A'});
+    if (cap.other_liabilities > 0) segs.push({label: 'Other Liab', value: cap.other_liabilities, color: '#999'});
+    if (cap.equity > 0) segs.push({label: 'Equity/NAV', value: cap.equity, color: '#7CAE7A'});
+    html += '<div class="bdc-col">' + buildBar(segs, ev) + '</div>';
+  }
+
+  html += '</div>'; // close stacks-grid
   container.innerHTML = html;
 }
 
