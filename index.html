@@ -1,0 +1,6683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BDC Portfolio Stress Test</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f5f0;
+    --card-bg: #fff;
+    --border: #ddd;
+    --text: #333;
+    --text-muted: #666;
+    --text-light: #888;
+    --header-bg: #2c3e50;
+    --tab-active: #4A7FB5;
+    --tab-hover: #3a6a9a;
+    --btn-bg: #e8e8e4;
+    --btn-hover: #d8d8d4;
+    --btn-active: #4A7FB5;
+    --red: #c0392b;
+    --green: #27ae60;
+    --amber: #e67e22;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--header-bg);
+    color: #fff;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .header h1 { font-size: 18px; font-weight: 600; white-space: nowrap; }
+  .tab-group {
+    display: flex;
+    gap: 4px;
+  }
+  .tab-group button {
+    padding: 6px 14px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.7);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .tab-group button:hover { background: rgba(255,255,255,0.15); color: #fff; }
+  .tab-group button.active {
+    background: var(--tab-active);
+    color: #fff;
+    border-color: var(--tab-active);
+  }
+  .spacer { flex: 1; }
+  .container { max-width: 1440px; margin: 0 auto; padding: 20px 24px; }
+  .view-panel { display: none; }
+  .view-panel.active { display: block; }
+
+  /* Preset row */
+  .preset-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .preset-btn {
+    padding: 8px 18px;
+    border: 1px solid var(--border);
+    background: var(--btn-bg);
+    color: var(--text);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .preset-btn:hover { background: var(--btn-hover); }
+  .preset-btn.active-preset { background: var(--tab-active); color: #fff; border-color: var(--tab-active); }
+
+  /* Controls panel */
+  .controls-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  .control-box {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .control-box h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+  .quick-buttons {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .quick-btn {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    background: var(--btn-bg);
+    color: var(--text-muted);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+  .quick-btn:hover { background: var(--btn-hover); }
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .slider-label {
+    width: 100px;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: right;
+    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .slider-row input[type="range"] {
+    flex: 1;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #ddd;
+    border-radius: 3px;
+    outline: none;
+  }
+  .slider-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--tab-active);
+    cursor: pointer;
+  }
+  .slider-row input[type="number"] {
+    width: 56px;
+    padding: 3px 4px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    text-align: right;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .slider-row .pct-suffix {
+    font-size: 11px;
+    color: var(--text-light);
+    width: 14px;
+  }
+
+  /* Cards */
+  .card-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .card {
+    flex: 1;
+    min-width: 160px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+  .card .card-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-light);
+    margin-bottom: 4px;
+  }
+  .card .card-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .card .card-value.loss { color: var(--red); }
+  .card .card-value.green { color: var(--green); }
+
+  /* Charts */
+  .chart-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  .chart-box {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+  }
+  .chart-box h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+  }
+  .expand-panel {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .expand-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .expand-header:hover { background: #f8f8f5; }
+  .expand-header h3 { font-size: 14px; font-weight: 600; color: var(--text); margin: 0; }
+  .expand-arrow {
+    font-size: 12px;
+    color: var(--text-muted);
+    transition: transform 0.2s;
+  }
+  .expand-panel.open .expand-arrow { transform: rotate(90deg); }
+  .expand-body { padding: 0 16px 16px; }
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .unit-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .utog {
+    padding: 3px 10px;
+    border: none;
+    background: var(--btn-bg);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .utog:not(:last-child) { border-right: 1px solid var(--border); }
+  .utog:hover { background: var(--btn-hover); }
+  .utog.active { background: var(--tab-active); color: #fff; }
+  .chart-wrap {
+    position: relative;
+    height: 280px;
+  }
+  .chart-wrap canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Heatmap table */
+  .heatmap-wrap {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+  }
+  .heatmap-wrap h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+  .heatmap-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .heatmap-table th {
+    padding: 6px 10px;
+    background: #f0f0ec;
+    border: 1px solid var(--border);
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .heatmap-table td {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    text-align: right;
+    white-space: nowrap;
+  }
+  .heatmap-table td.row-label {
+    text-align: left;
+    font-weight: 500;
+    background: #f8f8f5;
+  }
+
+  /* Top companies table */
+  .table-wrap {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+  }
+  .table-wrap h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .data-table th {
+    padding: 8px 10px;
+    background: #f0f0ec;
+    border-bottom: 2px solid var(--border);
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .data-table th.right, .data-table td.right { text-align: right; }
+  .data-table td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #eee;
+  }
+  .data-table tr:hover td { background: #f8f8f5; }
+  .badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #fff;
+    margin: 1px 2px;
+  }
+  .mtm-neg { color: var(--red); font-weight: 600; }
+  .mtm-pos { color: var(--green); font-weight: 600; }
+
+  /* PIK / NA toggle */
+  .toggle-group {
+    display: inline-flex;
+    gap: 2px;
+    background: #eee;
+    border-radius: 6px;
+    padding: 2px;
+    margin-bottom: 12px;
+  }
+  .toggle-btn {
+    padding: 5px 14px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .toggle-btn.active { background: var(--tab-active); color: #fff; }
+
+  .section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 24px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+  }
+  .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-light);
+    font-size: 14px;
+  }
+
+  .info-btn {
+    cursor: pointer;
+    font-size: 16px;
+    color: #888;
+    user-select: none;
+  }
+  .info-btn:hover { color: #4A7FB5; }
+  .info-popup {
+    position: absolute;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 12px 16px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    max-width: 400px;
+    z-index: 200;
+    font-size: 12px;
+    color: #555;
+    line-height: 1.6;
+  }
+  .info-popup p { margin-bottom: 8px; }
+  .info-popup p:last-child { margin-bottom: 0; }
+
+  @media (max-width: 900px) {
+    .controls-panel { grid-template-columns: 1fr; }
+    .chart-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>BDC Portfolio Stress Test</h1>
+  <div class="tab-group" id="bdcTabs">
+    <button class="active" data-bdc="ALL">ALL</button>
+    <button data-bdc="ARCC">ARCC</button>
+    <button data-bdc="BXSL">BXSL</button>
+    <button data-bdc="FSK">FSK</button>
+    <button data-bdc="GBDC">GBDC</button>
+    <button data-bdc="OBDC">OBDC</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="tab-group" id="viewTabs">
+    <button class="active" data-view="stress">Stress Model</button>
+    <button data-view="pik">PIK & Non-Accrual</button>
+  </div>
+</div>
+
+<div class="container">
+  <!-- STRESS MODEL TAB -->
+  <div class="view-panel active" id="panel-stress">
+    <div class="preset-row" id="presetRow">
+      <button class="preset-btn" data-preset="reset">Reset</button>
+      <button class="preset-btn" data-preset="mild">Mild</button>
+      <button class="preset-btn" data-preset="stress">Stress</button>
+      <button class="preset-btn" data-preset="severe">Severe</button>
+      <button class="preset-btn" data-preset="equitywipe">Equity Wipe</button>
+      <button class="preset-btn" data-preset="jaod">JAOD Default</button>
+    </div>
+
+    <div class="controls-panel">
+      <div class="control-box">
+        <h3>Seniority Total Loss Rates</h3>
+        <p style="font-size:11px;color:#888;margin:-4px 0 8px">Total Loss Rate = Default Rate &times; Loss Given Default</p>
+        <div class="quick-buttons">
+          <button class="quick-btn" onclick="quickSeniority('zero-equity')">Zero Equity</button>
+          <button class="quick-btn" onclick="quickSeniority('non1l-50')">Non-1L &rarr; 50%</button>
+          <button class="quick-btn" onclick="quickSeniority('reset')">Reset</button>
+        </div>
+        <div id="senioritySliders"></div>
+      </div>
+      <div class="control-box">
+        <h3>Sector Total Loss Rates</h3>
+        <p style="font-size:11px;color:#888;margin:-4px 0 8px">Total Loss Rate = Default Rate &times; Loss Given Default</p>
+        <div class="quick-buttons">
+          <button class="quick-btn" onclick="quickSector(10)">Set All 10%</button>
+          <button class="quick-btn" onclick="quickSector(20)">Set All 20%</button>
+          <button class="quick-btn" onclick="quickSector(0)">Reset</button>
+        </div>
+        <div id="sectorSliders"></div>
+      </div>
+    </div>
+
+    <div class="control-box" style="margin-bottom:20px;display:flex;align-items:center;gap:16px;padding:12px 16px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:13px;font-weight:600;color:#333;white-space:nowrap">Repricing Window</label>
+        <span class="info-btn" id="maturityInfoBtn" title="Click for details">&#9432;</span>
+      </div>
+      <input type="number" min="0" max="10" step="any" value="0" id="maturityInput" style="width:70px;padding:5px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;text-align:right">
+      <span style="font-size:13px;color:#666">years</span>
+      <div class="info-popup" id="maturityInfo" style="display:none">
+        <p>Loans maturing <strong>within</strong> the repricing window are excluded from stress losses and treated as cash recovered at par.</p>
+        <p>The assumption: maturing loans get repaid and redeployed at efficiently priced terms given current market awareness. Only loans maturing <strong>after</strong> the window are subject to the modeled loss rates.</p>
+        <p>Positions without a maturity date (equity, preferred, JV) are always fully exposed regardless of this setting.</p>
+      </div>
+    </div>
+
+    <div class="expand-panel" id="netImpactPanel">
+      <div class="expand-header" onclick="toggleExpand('netImpactPanel')">
+        <h3>Net Impact — Combined Loss Rates <span style="font-weight:400;color:#888;font-size:12px">(seniority &times; sector interaction)</span></h3>
+        <span class="expand-arrow">&#9654;</span>
+      </div>
+      <div class="expand-body" style="display:none">
+        <p style="font-size:11px;color:#888;margin-bottom:12px">Combined loss = 1 &minus; (1 &minus; seniority rate) &times; (1 &minus; sector rate). These charts show the effective total loss rate for each lien type and sector after both dimensions interact.</p>
+        <div class="chart-row">
+          <div class="chart-box">
+            <h3>Combined Loss % by Lien Type</h3>
+            <div class="chart-wrap"><canvas id="chartNetSeniority"></canvas></div>
+          </div>
+          <div class="chart-box">
+            <h3>Combined Loss % by Sector</h3>
+            <div class="chart-wrap"><canvas id="chartNetSector"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-row" id="summaryCards">
+      <div class="card"><div class="card-label">Portfolio FV</div><div class="card-value" id="cardFV">--</div></div>
+      <div class="card"><div class="card-label">Total Loss</div><div class="card-value loss" id="cardLoss">--</div></div>
+      <div class="card"><div class="card-label">Loss %</div><div class="card-value loss" id="cardLossPct">--</div></div>
+      <div class="card"><div class="card-label">Post-Stress FV</div><div class="card-value" id="cardPostFV">--</div></div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <div class="chart-header"><h3>Loss by Seniority</h3><div class="unit-toggle" id="toggleSeniority"><button class="utog" data-unit="$">$</button><button class="utog active" data-unit="%">%</button></div></div>
+        <div class="chart-wrap"><canvas id="chartSeniority"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-header"><h3>Loss by Sector</h3><div class="unit-toggle" id="toggleSector"><button class="utog" data-unit="$">$</button><button class="utog active" data-unit="%">%</button></div></div>
+        <div class="chart-wrap"><canvas id="chartSector"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-row" style="grid-template-columns:1fr">
+      <div class="chart-box">
+        <div class="chart-header"><h3>BDC Comparison (Original vs Post-Stress)</h3><div class="unit-toggle" id="toggleBDC"><button class="utog" data-unit="$">$</button><button class="utog active" data-unit="%">%</button></div></div>
+        <div class="chart-wrap" style="height:200px"><canvas id="chartBDC"></canvas></div>
+      </div>
+    </div>
+
+    <!-- heatmap removed -->
+
+    <div class="waterfall-section" style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:24px">
+      <h3 style="font-size:14px;font-weight:600;margin-bottom:4px">Capital Structure Waterfall</h3>
+      <p style="font-size:11px;color:#888;margin-bottom:16px"><em>Assumptions: Secured lenders have first claim on encumbered (ringfenced) assets only. If encumbered assets exceed secured debt, the excess flows to the general pool. If encumbered assets are insufficient, the secured shortfall becomes a pari passu claim alongside unsecured noteholders against the general (unencumbered) pool. Losses applied proportionally across both pools. Encumbered/unencumbered splits from iXBRL footnote data.</em></p>
+      <div id="waterfallTable"></div>
+    </div>
+
+    <div class="table-wrap">
+      <h3>Top 20 Most Impacted Companies</h3>
+      <div id="topCompaniesContainer"></div>
+    </div>
+  </div>
+
+  <!-- PIK & NON-ACCRUAL TAB -->
+  <div class="view-panel" id="panel-pik">
+    <h2 class="section-title">PIK Exposure</h2>
+    <div class="card-row" id="pikCards"></div>
+    <div class="toggle-group" id="pikToggle">
+      <button class="toggle-btn active" data-mode="portfolio">By Portfolio</button>
+      <button class="toggle-btn" data-mode="sector">By Sector</button>
+    </div>
+    <div class="chart-box" style="margin-bottom:24px">
+      <div class="chart-wrap" style="height:300px"><canvas id="chartPIK"></canvas></div>
+    </div>
+
+    <h2 class="section-title">Non-Accrual Exposure</h2>
+    <div class="card-row" id="naCards"></div>
+    <div class="toggle-group" id="naToggle">
+      <button class="toggle-btn active" data-mode="portfolio">By Portfolio</button>
+      <button class="toggle-btn" data-mode="sector">By Sector</button>
+    </div>
+    <div class="chart-box" style="margin-bottom:24px">
+      <div class="chart-wrap" style="height:300px"><canvas id="chartNA"></canvas></div>
+    </div>
+
+    <div class="table-wrap">
+      <h3>Top PIK Positions</h3>
+      <div id="pikTableContainer"></div>
+    </div>
+    <div class="table-wrap">
+      <h3>Non-Accrual Positions</h3>
+      <div id="naTableContainer"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = {
+  "tickers": [
+    "ARCC",
+    "BXSL",
+    "FSK",
+    "GBDC",
+    "OBDC"
+  ],
+  "sectors": [
+    "Business Services",
+    "Consumer",
+    "Energy & Materials",
+    "Financial Services",
+    "Healthcare",
+    "Industrials",
+    "Media & Telecom",
+    "Real Estate & Transportation",
+    "Software & Technology"
+  ],
+  "seniority_types": [
+    "1L",
+    "Unitranche",
+    "JV",
+    "Equity",
+    "Preferred",
+    "2L",
+    "Unsecured",
+    "ABF",
+    "Revolver",
+    "DDTL",
+    "Bond"
+  ],
+  "portfolios": {
+    "ARCC": {
+      "total_fv": 29484800000,
+      "by_sector": {
+        "Software & Technology": {
+          "count": 275,
+          "fair_value": 7133000000,
+          "par": 6000400000
+        },
+        "Financial Services": {
+          "count": 195,
+          "fair_value": 6327700000,
+          "par": 3768600000
+        },
+        "Consumer": {
+          "count": 306,
+          "fair_value": 4414700000,
+          "par": 3789100000
+        },
+        "Healthcare": {
+          "count": 171,
+          "fair_value": 4128400000,
+          "par": 3303600000
+        },
+        "Business Services": {
+          "count": 169,
+          "fair_value": 2776700000,
+          "par": 2668200000
+        },
+        "Industrials": {
+          "count": 109,
+          "fair_value": 1732600000,
+          "par": 1561700000
+        },
+        "Energy & Materials": {
+          "count": 64,
+          "fair_value": 1601000000,
+          "par": 1356800000
+        },
+        "Media & Telecom": {
+          "count": 71,
+          "fair_value": 1252200000,
+          "par": 726500000
+        },
+        "Real Estate & Transportation": {
+          "count": 8,
+          "fair_value": 118500000,
+          "par": 11300000
+        }
+      },
+      "by_seniority": {
+        "1L": {
+          "count": 731,
+          "fair_value": 17493600000,
+          "par": 17860200000
+        },
+        "JV": {
+          "count": 2,
+          "fair_value": 3020400000,
+          "par": 1117000000
+        },
+        "Preferred": {
+          "count": 89,
+          "fair_value": 2372000000,
+          "par": 0
+        },
+        "Equity": {
+          "count": 240,
+          "fair_value": 2125000000,
+          "par": 0
+        },
+        "Unsecured": {
+          "count": 46,
+          "fair_value": 1545200000,
+          "par": 1672200000
+        },
+        "2L": {
+          "count": 27,
+          "fair_value": 1487400000,
+          "par": 1579500000
+        },
+        "Revolver": {
+          "count": 160,
+          "fair_value": 934500000,
+          "par": 957300000
+        },
+        "Unknown": {
+          "count": 73,
+          "fair_value": 506700000,
+          "par": 0
+        }
+      },
+      "sector_x_seniority": {
+        "Business Services": {
+          "Unknown": 79700000,
+          "1L": 2339200000,
+          "2L": 181500000,
+          "Equity": 94000000,
+          "Preferred": 2200000,
+          "Revolver": 49500000,
+          "Unsecured": 30600000
+        },
+        "Consumer": {
+          "Unknown": 117100000,
+          "1L": 3220600000,
+          "2L": 97000000,
+          "Equity": 447600000,
+          "Preferred": 169400000,
+          "Revolver": 153300000,
+          "Unsecured": 209700000
+        },
+        "Energy & Materials": {
+          "Unknown": 29500000,
+          "1L": 876700000,
+          "Equity": 279500000,
+          "Preferred": 5100000,
+          "Revolver": 12800000,
+          "Unsecured": 397400000
+        },
+        "Financial Services": {
+          "Unknown": 58500000,
+          "1L": 1531000000,
+          "2L": 123500000,
+          "Equity": 275000000,
+          "JV": 3020400000,
+          "Preferred": 364500000,
+          "Revolver": 562100000,
+          "Unsecured": 392700000
+        },
+        "Healthcare": {
+          "Unknown": 93700000,
+          "1L": 2608900000,
+          "2L": 389000000,
+          "Equity": 118500000,
+          "Preferred": 764300000,
+          "Revolver": 61500000,
+          "Unsecured": 92500000
+        },
+        "Industrials": {
+          "Unknown": 26000000,
+          "1L": 1394300000,
+          "2L": 54100000,
+          "Equity": 168700000,
+          "Preferred": 8700000,
+          "Revolver": 24800000,
+          "Unsecured": 56000000
+        },
+        "Media & Telecom": {
+          "Unknown": 8200000,
+          "1L": 517400000,
+          "2L": 41100000,
+          "Equity": 359300000,
+          "Preferred": 219600000,
+          "Revolver": 13200000,
+          "Unsecured": 93400000
+        },
+        "Real Estate & Transportation": {
+          "Unknown": 25300000,
+          "1L": 11000000,
+          "Equity": 8600000,
+          "Preferred": 73400000,
+          "Unsecured": 200000
+        },
+        "Software & Technology": {
+          "Unknown": 68700000,
+          "1L": 4994500000,
+          "2L": 601200000,
+          "Equity": 373800000,
+          "Preferred": 764800000,
+          "Revolver": 57300000,
+          "Unsecured": 272700000
+        }
+      },
+      "top_companies": [
+        {
+          "name": "Ivy Hill Asset Management, L.P.",
+          "sector": "Financial Services",
+          "total_fv": 2433900000,
+          "by_type": {
+            "JV": 1903400000,
+            "Revolver": 530500000
+          }
+        },
+        {
+          "name": "Senior Direct Lending Program, LLC",
+          "sector": "Financial Services",
+          "total_fv": 1117000000,
+          "by_type": {
+            "JV": 1117000000
+          }
+        },
+        {
+          "name": "Denali Intermediate Holdings, Inc. and Denali Parent Holdings, L.P.",
+          "sector": "Business Services",
+          "total_fv": 381100000,
+          "by_type": {
+            "1L": 375700000,
+            "Equity": 5400000
+          }
+        },
+        {
+          "name": "High Street Buyer, Inc. and High Street Holdco LLC",
+          "sector": "Financial Services",
+          "total_fv": 372500000,
+          "by_type": {
+            "1L": 45600000,
+            "Equity": 47400000,
+            "Preferred": 279500000
+          }
+        },
+        {
+          "name": "Symplr Software Inc. and Symplr Software Intermediate Holdings, Inc.",
+          "sector": "Healthcare",
+          "total_fv": 341900000,
+          "by_type": {
+            "1L": 38800000,
+            "2L": 117000000,
+            "Preferred": 179900000,
+            "Revolver": 6200000
+          }
+        },
+        {
+          "name": "Digicert, Inc., Dcert Buyer, Inc., DCert Preferred Holdings, Inc. and Destiny Digital Holdings, L.P.",
+          "sector": "Software & Technology",
+          "total_fv": 335000000,
+          "by_type": {
+            "1L": 122900000,
+            "2L": 18100000,
+            "Equity": 15100000,
+            "Preferred": 178900000
+          }
+        },
+        {
+          "name": "Cornerstone OnDemand, Inc. and Sunshine Software Holdings, Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 319900000,
+          "by_type": {
+            "1L": 15000000,
+            "2L": 125100000,
+            "Equity": 19900000,
+            "Preferred": 152300000,
+            "Revolver": 7600000
+          }
+        },
+        {
+          "name": "AthenaHealth Group Inc., Minerva Holdco, Inc. and BCPE Co-Invest (A), LP",
+          "sector": "Healthcare",
+          "total_fv": 316800000,
+          "by_type": {
+            "Unknown": 15500000,
+            "1L": 100000,
+            "Preferred": 301200000
+          }
+        },
+        {
+          "name": "Neptune Bidco US Inc. and Elliott Metron Co-Investor Aggregator L.P.",
+          "sector": "Business Services",
+          "total_fv": 299900000,
+          "by_type": {
+            "1L": 227200000,
+            "2L": 65800000,
+            "Equity": 6900000,
+            "Revolver": 0
+          }
+        },
+        {
+          "name": "Plaskolite PPC Intermediate II LLC and Plaskolite PPC Blocker LLC",
+          "sector": "Energy & Materials",
+          "total_fv": 261400000,
+          "by_type": {
+            "1L": 258800000,
+            "Equity": 0,
+            "Preferred": 600000,
+            "Revolver": 2000000
+          }
+        },
+        {
+          "name": "Himalaya TopCo LLC and BCPE Hyperlink Holdings, LP",
+          "sector": "Healthcare",
+          "total_fv": 253300000,
+          "by_type": {
+            "Unknown": 2500000,
+            "1L": 250800000
+          }
+        },
+        {
+          "name": "Banyan Software Holdings, LLC and Banyan Software Intermediate, Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 252000000,
+          "by_type": {
+            "1L": 163800000,
+            "Preferred": 88200000
+          }
+        },
+        {
+          "name": "Centralsquare Technologies, LLC and Supermoose Newco, Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 251900000,
+          "by_type": {
+            "1L": 144700000,
+            "Preferred": 107200000
+          }
+        },
+        {
+          "name": "Adonis Bidco Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 246500000,
+          "by_type": {
+            "1L": 246500000
+          }
+        },
+        {
+          "name": "Apex Clean Energy TopCo, LLC",
+          "sector": "Energy & Materials",
+          "total_fv": 245000000,
+          "by_type": {
+            "Equity": 245000000
+          }
+        },
+        {
+          "name": "LHS Borrower, LLC, LH Equity Investors, L.P., Leaf Home, LLC and GC Fund IV Blocker LLC",
+          "sector": "Consumer",
+          "total_fv": 239800000,
+          "by_type": {
+            "1L": 171000000,
+            "Equity": 67600000,
+            "Revolver": 1200000
+          }
+        },
+        {
+          "name": "Silk Holdings III LLC and Silk Holdings I Corp.",
+          "sector": "Consumer",
+          "total_fv": 238500000,
+          "by_type": {
+            "1L": 197500000,
+            "Equity": 39000000,
+            "Revolver": 2000000
+          }
+        },
+        {
+          "name": "eCapital Finance Corp.",
+          "sector": "Financial Services",
+          "total_fv": 223600000,
+          "by_type": {
+            "Unsecured": 223600000
+          }
+        },
+        {
+          "name": "FEH Group, LLC.",
+          "sector": "Media & Telecom",
+          "total_fv": 221100000,
+          "by_type": {
+            "Equity": 221100000
+          }
+        },
+        {
+          "name": "Creek Parent, Inc. and Creek Feeder, L.P.",
+          "sector": "Healthcare",
+          "total_fv": 217200000,
+          "by_type": {
+            "1L": 207100000,
+            "Equity": 10100000
+          }
+        },
+        {
+          "name": "CoreLogic, Inc. and T-VIII Celestial Co-Invest LP",
+          "sector": "Software & Technology",
+          "total_fv": 216900000,
+          "by_type": {
+            "2L": 156600000,
+            "Equity": 53900000,
+            "Revolver": 6400000
+          }
+        },
+        {
+          "name": "Apex Service Partners, LLC and Apex Service Partners Holdings, LLC",
+          "sector": "Consumer",
+          "total_fv": 213600000,
+          "by_type": {
+            "1L": 199900000,
+            "Equity": 11400000,
+            "Revolver": 2300000
+          }
+        },
+        {
+          "name": "Pike Corporation",
+          "sector": "Industrials",
+          "total_fv": 211100000,
+          "by_type": {
+            "1L": 211100000
+          }
+        },
+        {
+          "name": "SageSure Holdings, LLC and SageSure LLC",
+          "sector": "Financial Services",
+          "total_fv": 207600000,
+          "by_type": {
+            "1L": 113500000,
+            "Equity": 94100000
+          }
+        },
+        {
+          "name": "Spruce Bidco II Inc.",
+          "sector": "Healthcare",
+          "total_fv": 198400000,
+          "by_type": {
+            "1L": 198400000
+          }
+        }
+      ],
+      "maturity_buckets": {
+        "Business Services": {
+          "Unknown": {
+            "none": 79700000
+          },
+          "1L": {
+            "2026": 106900000,
+            "2027": 95700000,
+            "2028": 271400000,
+            "2029": 585800000,
+            "2030": 370600000,
+            "2031": 284700000,
+            "2032": 624100000
+          },
+          "2L": {
+            "2029": 88800000,
+            "2030": 92700000
+          },
+          "Equity": {
+            "2028": 0,
+            "2036": 0,
+            "none": 94000000
+          },
+          "Preferred": {
+            "none": 2200000
+          },
+          "Revolver": {
+            "2026": 12400000,
+            "2027": 3300000,
+            "2028": 3200000,
+            "2029": 19200000,
+            "2030": 6000000,
+            "2031": 3100000,
+            "2032": 2300000
+          },
+          "Unsecured": {
+            "2028": 5300000,
+            "2031": 25300000
+          }
+        },
+        "Consumer": {
+          "Unknown": {
+            "none": 117100000
+          },
+          "1L": {
+            "2026": 67100000,
+            "2027": 240000000,
+            "2028": 363700000,
+            "2029": 519600000,
+            "2030": 976000000,
+            "2031": 555500000,
+            "2032": 498700000
+          },
+          "2L": {
+            "2027": 4600000,
+            "2029": 84200000,
+            "2031": 8200000
+          },
+          "Equity": {
+            "2032": 3900000,
+            "2034": 0,
+            "2035": 8100000,
+            "2050": 0,
+            "2054": 0,
+            "none": 435600000
+          },
+          "Preferred": {
+            "2032": 0,
+            "2051": 37200000,
+            "none": 132200000
+          },
+          "Revolver": {
+            "2026": 4800000,
+            "2027": 51900000,
+            "2028": 25200000,
+            "2029": 32700000,
+            "2030": 32400000,
+            "2031": 3200000,
+            "2032": 3100000
+          },
+          "Unsecured": {
+            "2029": 26600000,
+            "2031": 48800000,
+            "2032": 134300000
+          }
+        },
+        "Energy & Materials": {
+          "Unknown": {
+            "none": 29500000
+          },
+          "1L": {
+            "2026": 57000000,
+            "2027": 31400000,
+            "2028": 226900000,
+            "2030": 319500000,
+            "2031": 115400000,
+            "2032": 126200000,
+            "2054": 200000,
+            "2055": 100000
+          },
+          "Equity": {
+            "2027": 0,
+            "none": 279500000
+          },
+          "Preferred": {
+            "2028": 0,
+            "none": 5100000
+          },
+          "Revolver": {
+            "2027": 4900000,
+            "2030": 2500000,
+            "2031": 4900000,
+            "2032": 500000
+          },
+          "Unsecured": {
+            "2026": 158400000,
+            "2027": 141000000,
+            "2030": 98000000
+          }
+        },
+        "Financial Services": {
+          "Unknown": {
+            "none": 58500000
+          },
+          "1L": {
+            "2027": 9200000,
+            "2028": 283000000,
+            "2029": 141900000,
+            "2030": 456500000,
+            "2031": 260700000,
+            "2032": 363600000,
+            "2033": 12600000,
+            "2038": 0,
+            "2039": 3500000
+          },
+          "2L": {
+            "2028": 100000,
+            "2032": 123400000
+          },
+          "Equity": {
+            "2026": 2500000,
+            "2028": 0,
+            "none": 272500000
+          },
+          "JV": {
+            "2036": 1117000000,
+            "none": 1903400000
+          },
+          "Preferred": {
+            "2031": 26500000,
+            "2039": 0,
+            "none": 338000000
+          },
+          "Revolver": {
+            "2027": 4200000,
+            "2028": 3500000,
+            "2029": 7600000,
+            "2030": 532700000,
+            "2031": 10600000,
+            "2032": 3500000
+          },
+          "Unsecured": {
+            "2026": 6600000,
+            "2029": 235900000,
+            "2030": 49200000,
+            "2031": 16000000,
+            "2032": 20800000,
+            "2033": 49500000,
+            "2035": 14700000
+          }
+        },
+        "Healthcare": {
+          "Unknown": {
+            "none": 93700000
+          },
+          "1L": {
+            "2026": 50200000,
+            "2027": 241500000,
+            "2028": 147900000,
+            "2029": 78500000,
+            "2030": 496000000,
+            "2031": 879400000,
+            "2032": 715400000
+          },
+          "2L": {
+            "2027": 42800000,
+            "2028": 171300000,
+            "2029": 174900000
+          },
+          "Equity": {
+            "2028": 1600000,
+            "2029": 300000,
+            "2031": 43500000,
+            "2034": 0,
+            "none": 73100000
+          },
+          "Preferred": {
+            "2028": 53800000,
+            "2031": 0,
+            "2033": 0,
+            "2051": 1200000,
+            "none": 709300000
+          },
+          "Revolver": {
+            "2026": 18000000,
+            "2027": 16000000,
+            "2028": 23700000,
+            "2029": 2300000,
+            "2031": 1000000,
+            "2032": 500000
+          },
+          "Unsecured": {
+            "2027": 1800000,
+            "2029": 26000000,
+            "2030": 64700000
+          }
+        },
+        "Industrials": {
+          "Unknown": {
+            "none": 26000000
+          },
+          "1L": {
+            "2026": 3900000,
+            "2027": 93900000,
+            "2028": 168000000,
+            "2029": 63100000,
+            "2030": 167000000,
+            "2031": 284800000,
+            "2032": 613600000
+          },
+          "2L": {
+            "2029": 54100000
+          },
+          "Equity": {
+            "2027": 0,
+            "none": 168700000
+          },
+          "Preferred": {
+            "none": 8700000
+          },
+          "Revolver": {
+            "2027": 12600000,
+            "2029": 1200000,
+            "2030": 1700000,
+            "2031": 3200000,
+            "2032": 6100000
+          },
+          "Unsecured": {
+            "2028": 19800000,
+            "2032": 36200000
+          }
+        },
+        "Media & Telecom": {
+          "Unknown": {
+            "2031": 2300000,
+            "none": 5900000
+          },
+          "1L": {
+            "2026": 25500000,
+            "2028": 18800000,
+            "2029": 93600000,
+            "2030": 128100000,
+            "2031": 220000000,
+            "2032": 31400000
+          },
+          "2L": {
+            "2026": 200000,
+            "2030": 40900000
+          },
+          "Equity": {
+            "2027": 0,
+            "2028": 0,
+            "2029": 0,
+            "2030": 0,
+            "2035": 0,
+            "none": 359300000
+          },
+          "Preferred": {
+            "none": 219600000
+          },
+          "Revolver": {
+            "2028": 9300000,
+            "2030": 3600000,
+            "2031": 300000
+          },
+          "Unsecured": {
+            "2026": 1400000,
+            "2027": 2300000,
+            "2028": 20600000,
+            "2033": 69100000
+          }
+        },
+        "Real Estate & Transportation": {
+          "Unknown": {
+            "none": 25300000
+          },
+          "1L": {
+            "2028": 100000,
+            "2032": 10900000
+          },
+          "Equity": {
+            "none": 8600000
+          },
+          "Preferred": {
+            "none": 73400000
+          },
+          "Unsecured": {
+            "2031": 200000
+          }
+        },
+        "Software & Technology": {
+          "Unknown": {
+            "none": 68700000
+          },
+          "1L": {
+            "2026": 69800000,
+            "2027": 301500000,
+            "2028": 467500000,
+            "2029": 602500000,
+            "2030": 493900000,
+            "2031": 1431200000,
+            "2032": 1628100000
+          },
+          "2L": {
+            "2028": 70900000,
+            "2029": 425700000,
+            "2033": 104600000
+          },
+          "Equity": {
+            "2026": 0,
+            "2035": 10600000,
+            "none": 363200000
+          },
+          "Preferred": {
+            "2026": 0,
+            "none": 764800000
+          },
+          "Revolver": {
+            "2026": 14400000,
+            "2027": 12700000,
+            "2028": 9500000,
+            "2029": 11000000,
+            "2030": 4500000,
+            "2031": 2700000,
+            "2032": 2500000
+          },
+          "Unsecured": {
+            "2029": 66200000,
+            "2030": 60700000,
+            "2031": 121800000,
+            "2033": 24000000
+          }
+        }
+      }
+    },
+    "BXSL": {
+      "total_fv": 14149560000,
+      "by_sector": {
+        "Software & Technology": {
+          "count": 235,
+          "fair_value": 4758317000,
+          "par": 19987891000
+        },
+        "Business Services": {
+          "count": 147,
+          "fair_value": 3179205000,
+          "par": 23064743000
+        },
+        "Healthcare": {
+          "count": 79,
+          "fair_value": 1719818000,
+          "par": 8006168000
+        },
+        "Financial Services": {
+          "count": 68,
+          "fair_value": 1383757000,
+          "par": 17143211000
+        },
+        "Industrials": {
+          "count": 45,
+          "fair_value": 1190234000,
+          "par": 1817727000
+        },
+        "Real Estate & Transportation": {
+          "count": 65,
+          "fair_value": 1154236000,
+          "par": 7399907000
+        },
+        "Consumer": {
+          "count": 14,
+          "fair_value": 487616000,
+          "par": 872870000
+        },
+        "Energy & Materials": {
+          "count": 8,
+          "fair_value": 161670000,
+          "par": 162543000
+        },
+        "Media & Telecom": {
+          "count": 7,
+          "fair_value": 114707000,
+          "par": 561233000
+        }
+      },
+      "by_seniority": {
+        "1L": {
+          "count": 587,
+          "fair_value": 13808700000,
+          "par": 14227331000
+        },
+        "2L": {
+          "count": 16,
+          "fair_value": 231650000,
+          "par": 245756000
+        },
+        "Equity": {
+          "count": 64,
+          "fair_value": 96932000,
+          "par": 64529933000
+        },
+        "Unsecured": {
+          "count": 1,
+          "fair_value": 12278000,
+          "par": 13273000
+        }
+      },
+      "sector_x_seniority": {
+        "Business Services": {
+          "1L": 3143628000,
+          "2L": 4920000,
+          "Equity": 30657000
+        },
+        "Consumer": {
+          "1L": 473568000,
+          "Equity": 14048000
+        },
+        "Energy & Materials": {
+          "1L": 161670000
+        },
+        "Financial Services": {
+          "1L": 1373277000,
+          "2L": 3152000,
+          "Equity": 7328000
+        },
+        "Healthcare": {
+          "1L": 1705743000,
+          "2L": 12157000,
+          "Equity": 1918000
+        },
+        "Industrials": {
+          "1L": 1171208000,
+          "2L": 9619000,
+          "Equity": 9407000
+        },
+        "Media & Telecom": {
+          "1L": 104078000,
+          "Equity": 10629000
+        },
+        "Real Estate & Transportation": {
+          "1L": 1076244000,
+          "2L": 72923000,
+          "Equity": 5069000
+        },
+        "Software & Technology": {
+          "1L": 4599284000,
+          "2L": 128879000,
+          "Equity": 17876000,
+          "Unsecured": 12278000
+        }
+      },
+      "top_companies": [
+        {
+          "name": "Snoopy Bidco, Inc.",
+          "sector": "Healthcare",
+          "total_fv": 339635000,
+          "by_type": {
+            "1L": 339635000
+          }
+        },
+        {
+          "name": "JSS Holdings, Inc.",
+          "sector": "Business Services",
+          "total_fv": 327521000,
+          "by_type": {
+            "1L": 327521000
+          }
+        },
+        {
+          "name": "Guidehouse, Inc.",
+          "sector": "Business Services",
+          "total_fv": 314311000,
+          "by_type": {
+            "1L": 314311000
+          }
+        },
+        {
+          "name": "Medallia, Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 307896000,
+          "by_type": {
+            "1L": 307896000
+          }
+        },
+        {
+          "name": "Auctane, Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 277347000,
+          "by_type": {
+            "1L": 277347000
+          }
+        },
+        {
+          "name": "Cambium Learning Group, Inc.",
+          "sector": "Business Services",
+          "total_fv": 275439000,
+          "by_type": {
+            "1L": 275439000
+          }
+        },
+        {
+          "name": "Corfin Holdings, Inc.",
+          "sector": "Industrials",
+          "total_fv": 262854000,
+          "by_type": {
+            "1L": 262854000
+          }
+        },
+        {
+          "name": "Bazaarvoice, Inc.",
+          "sector": "Business Services",
+          "total_fv": 238337000,
+          "by_type": {
+            "1L": 238337000
+          }
+        },
+        {
+          "name": "Navigator Acquiror, Inc.",
+          "sector": "Healthcare",
+          "total_fv": 225532000,
+          "by_type": {
+            "1L": 225532000
+          }
+        },
+        {
+          "name": "Inovalon Holdings, Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 200653000,
+          "by_type": {
+            "1L": 184968000,
+            "2L": 15685000
+          }
+        },
+        {
+          "name": "IRI Group Holdings, Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 197537000,
+          "by_type": {
+            "1L": 197537000
+          }
+        },
+        {
+          "name": "Tennessee Bidco, Limited",
+          "sector": "Financial Services",
+          "total_fv": 195755000,
+          "by_type": {
+            "1L": 195755000
+          }
+        },
+        {
+          "name": "Qualus Power Services Corp.",
+          "sector": "Real Estate & Transportation",
+          "total_fv": 183686000,
+          "by_type": {
+            "1L": 183686000
+          }
+        },
+        {
+          "name": "eResearchTechnology, Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 182054000,
+          "by_type": {
+            "1L": 182054000
+          }
+        },
+        {
+          "name": "CustomInk, LLC",
+          "sector": "Consumer",
+          "total_fv": 175837000,
+          "by_type": {
+            "1L": 175837000
+          }
+        },
+        {
+          "name": "Redwood Services Group, LLC",
+          "sector": "Software & Technology",
+          "total_fv": 174941000,
+          "by_type": {
+            "1L": 174941000
+          }
+        },
+        {
+          "name": "Integrity Marketing Acquisition, LLC",
+          "sector": "Financial Services",
+          "total_fv": 163941000,
+          "by_type": {
+            "1L": 163941000
+          }
+        },
+        {
+          "name": "Genuine Cable Group, LLC",
+          "sector": "Consumer",
+          "total_fv": 160663000,
+          "by_type": {
+            "1L": 160663000
+          }
+        },
+        {
+          "name": "Aevex Holdings, LLC",
+          "sector": "Industrials",
+          "total_fv": 154004000,
+          "by_type": {
+            "1L": 154004000
+          }
+        },
+        {
+          "name": "Shelf Bidco, Ltd.",
+          "sector": "Financial Services",
+          "total_fv": 148382000,
+          "by_type": {
+            "1L": 148382000
+          }
+        },
+        {
+          "name": "CFS Brands, LLC",
+          "sector": "Business Services",
+          "total_fv": 138043000,
+          "by_type": {
+            "1L": 138043000
+          }
+        },
+        {
+          "name": "MannKind Corp.",
+          "sector": "Healthcare",
+          "total_fv": 137455000,
+          "by_type": {
+            "1L": 137455000
+          }
+        },
+        {
+          "name": "Beacon Dc, Ltd.",
+          "sector": "Financial Services",
+          "total_fv": 136682000,
+          "by_type": {
+            "1L": 136682000
+          }
+        },
+        {
+          "name": "Chartwell Cumming Holding, Corp.",
+          "sector": "Business Services",
+          "total_fv": 134062000,
+          "by_type": {
+            "1L": 134062000
+          }
+        },
+        {
+          "name": "Mode Purchaser, Inc.",
+          "sector": "Real Estate & Transportation",
+          "total_fv": 129323000,
+          "by_type": {
+            "1L": 129323000
+          }
+        }
+      ],
+      "maturity_buckets": {
+        "Business Services": {
+          "1L": {
+            "2027": 121592000,
+            "2028": 397910000,
+            "2029": 613910000,
+            "2030": 942434000,
+            "2031": 851143000,
+            "2032": 216639000
+          },
+          "2L": {
+            "2032": 4920000
+          },
+          "Equity": {
+            "none": 30657000
+          }
+        },
+        "Consumer": {
+          "1L": {
+            "2026": 206422000,
+            "2028": 202469000,
+            "2030": 63193000,
+            "2032": 1484000
+          },
+          "Equity": {
+            "none": 14048000
+          }
+        },
+        "Energy & Materials": {
+          "1L": {
+            "2027": 7408000,
+            "2028": 88876000,
+            "2031": 65386000
+          }
+        },
+        "Financial Services": {
+          "1L": {
+            "2027": 32853000,
+            "2028": 308962000,
+            "2029": 99029000,
+            "2030": 289691000,
+            "2031": 468600000,
+            "2032": 168469000,
+            "2033": 921000,
+            "2038": 0,
+            "2039": 4752000
+          },
+          "2L": {
+            "2039": 3152000
+          },
+          "Equity": {
+            "none": 7328000
+          }
+        },
+        "Healthcare": {
+          "1L": {
+            "2026": 186000,
+            "2027": 44593000,
+            "2028": 774444000,
+            "2029": 160996000,
+            "2030": 478448000,
+            "2031": 152051000,
+            "2032": 95025000
+          },
+          "2L": {
+            "2028": 4885000,
+            "2029": 7272000
+          },
+          "Equity": {
+            "none": 1918000
+          }
+        },
+        "Industrials": {
+          "1L": {
+            "2026": 43387000,
+            "2027": 530639000,
+            "2028": 154004000,
+            "2029": 1179000,
+            "2030": 110267000,
+            "2031": 310828000,
+            "2032": 20904000
+          },
+          "2L": {
+            "2029": 9619000
+          },
+          "Equity": {
+            "none": 9407000
+          }
+        },
+        "Media & Telecom": {
+          "1L": {
+            "2031": 82177000,
+            "2032": 21901000
+          },
+          "Equity": {
+            "none": 10629000
+          }
+        },
+        "Real Estate & Transportation": {
+          "1L": {
+            "2027": 443652000,
+            "2028": 232344000,
+            "2029": 124287000,
+            "2030": 158754000,
+            "2031": 64854000,
+            "2032": 52353000
+          },
+          "2L": {
+            "2028": 72923000
+          },
+          "Equity": {
+            "none": 5069000
+          }
+        },
+        "Software & Technology": {
+          "1L": {
+            "2026": 105705000,
+            "2027": 293232000,
+            "2028": 1385247000,
+            "2029": 925544000,
+            "2030": 310108000,
+            "2031": 965198000,
+            "2032": 614250000
+          },
+          "2L": {
+            "2029": 43810000,
+            "2032": 63461000,
+            "2033": 21608000
+          },
+          "Equity": {
+            "none": 17876000
+          },
+          "Unsecured": {
+            "2031": 12278000
+          }
+        }
+      }
+    },
+    "FSK": {
+      "total_fv": 13008600000,
+      "by_sector": {
+        "Financial Services": {
+          "count": 91,
+          "fair_value": 3344299525,
+          "par": 8313125100000
+        },
+        "Software & Technology": {
+          "count": 142,
+          "fair_value": 2248377885,
+          "par": 2774300000
+        },
+        "Healthcare": {
+          "count": 81,
+          "fair_value": 1864414359,
+          "par": 1632100000
+        },
+        "Business Services": {
+          "count": 80,
+          "fair_value": 1644907073,
+          "par": 2055400000
+        },
+        "Industrials": {
+          "count": 81,
+          "fair_value": 1596422917,
+          "par": 1660800000
+        },
+        "Consumer": {
+          "count": 58,
+          "fair_value": 852075905,
+          "par": 936500000
+        },
+        "Media & Telecom": {
+          "count": 16,
+          "fair_value": 580686220,
+          "par": 515500000
+        },
+        "Real Estate & Transportation": {
+          "count": 46,
+          "fair_value": 559366679,
+          "par": 612300000
+        },
+        "Energy & Materials": {
+          "count": 8,
+          "fair_value": 318049437,
+          "par": 139100000
+        }
+      },
+      "by_seniority": {
+        "1L": {
+          "count": 425,
+          "fair_value": 7523400000,
+          "par": 9599300000
+        },
+        "JV": {
+          "count": 1,
+          "fair_value": 1967900000,
+          "par": 2267400000
+        },
+        "ABF": {
+          "count": 84,
+          "fair_value": 1693700000,
+          "par": 8310697800000
+        },
+        "Preferred": {
+          "count": 23,
+          "fair_value": 793093283,
+          "par": 0
+        },
+        "2L": {
+          "count": 10,
+          "fair_value": 538600000,
+          "par": 644200000
+        },
+        "Equity": {
+          "count": 45,
+          "fair_value": 311306717,
+          "par": 0
+        },
+        "Unsecured": {
+          "count": 10,
+          "fair_value": 126000000,
+          "par": 172200000
+        },
+        "Bond": {
+          "count": 5,
+          "fair_value": 54600000,
+          "par": 70200000
+        }
+      },
+      "sector_x_seniority": {
+        "Business Services": {
+          "1L": 1435098440,
+          "2L": 5200000,
+          "ABF": 195485066,
+          "Equity": 9024820,
+          "Preferred": 0,
+          "Unsecured": 98746
+        },
+        "Consumer": {
+          "1L": 684863885,
+          "2L": 19200000,
+          "ABF": 77003542,
+          "Equity": 56330747,
+          "Preferred": 14677730
+        },
+        "Energy & Materials": {
+          "1L": 58663809,
+          "ABF": 66988358,
+          "Equity": 21223204,
+          "Preferred": 171174066
+        },
+        "Financial Services": {
+          "1L": 654216078,
+          "ABF": 696811196,
+          "Equity": 4661171,
+          "JV": 1967900000,
+          "Preferred": 16958728,
+          "Unsecured": 3752351
+        },
+        "Healthcare": {
+          "1L": 1270398312,
+          "ABF": 39777290,
+          "Bond": 30700000,
+          "Equity": 28363721,
+          "Preferred": 495175036
+        },
+        "Industrials": {
+          "1L": 995671706,
+          "2L": 253400000,
+          "ABF": 245466507,
+          "Equity": 24595115,
+          "Preferred": 16264511,
+          "Unsecured": 61025078
+        },
+        "Media & Telecom": {
+          "1L": 328126803,
+          "ABF": 69444912,
+          "Equity": 123570618,
+          "Unsecured": 59543887
+        },
+        "Real Estate & Transportation": {
+          "1L": 256643551,
+          "ABF": 302723128
+        },
+        "Software & Technology": {
+          "1L": 1839717416,
+          "2L": 260800000,
+          "Bond": 23900000,
+          "Equity": 43537320,
+          "Preferred": 78843211,
+          "Unsecured": 1579937
+        }
+      },
+      "top_companies": [
+        {
+          "name": "Credit Opportunities Partners JV, LLC",
+          "sector": "Financial Services",
+          "total_fv": 1967900000,
+          "by_type": {
+            "JV": 1967900000
+          }
+        },
+        {
+          "name": "athenahealth Inc",
+          "sector": "Healthcare",
+          "total_fv": 380530065,
+          "by_type": {
+            "Preferred": 380530065
+          }
+        },
+        {
+          "name": "Production Resource Group LLC",
+          "sector": "Media & Telecom",
+          "total_fv": 326705903,
+          "by_type": {
+            "1L": 232193223,
+            "Equity": 94512680
+          }
+        },
+        {
+          "name": "Solera LLC",
+          "sector": "Software & Technology",
+          "total_fv": 260800000,
+          "by_type": {
+            "2L": 260800000
+          }
+        },
+        {
+          "name": "Peraton Corp",
+          "sector": "Industrials",
+          "total_fv": 246600000,
+          "by_type": {
+            "2L": 246600000
+          }
+        },
+        {
+          "name": "Kellermeyer Bergensons Services LLC",
+          "sector": "Business Services",
+          "total_fv": 221241513,
+          "by_type": {
+            "1L": 221241513,
+            "Equity": 0,
+            "Preferred": 0
+          }
+        },
+        {
+          "name": "Galaxy Universal LLC",
+          "sector": "Consumer",
+          "total_fv": 215317832,
+          "by_type": {
+            "1L": 200441754,
+            "Equity": 198348,
+            "Preferred": 14677730
+          }
+        },
+        {
+          "name": "Global Jet Capital LLC",
+          "sector": "Business Services",
+          "total_fv": 195485066,
+          "by_type": {
+            "ABF": 195485066
+          }
+        },
+        {
+          "name": "Roemanu LLC",
+          "sector": "Financial Services",
+          "total_fv": 186320228,
+          "by_type": {
+            "ABF": 186320228
+          }
+        },
+        {
+          "name": "JW Aluminum Co",
+          "sector": "Energy & Materials",
+          "total_fv": 168992241,
+          "by_type": {
+            "Preferred": 168992241
+          }
+        },
+        {
+          "name": "MB2 Dental Solutions LLC",
+          "sector": "Healthcare",
+          "total_fv": 160540177,
+          "by_type": {
+            "1L": 160540177
+          }
+        },
+        {
+          "name": "Medallia Inc",
+          "sector": "Software & Technology",
+          "total_fv": 156804710,
+          "by_type": {
+            "1L": 156804710
+          }
+        },
+        {
+          "name": "Med-Metrix",
+          "sector": "Software & Technology",
+          "total_fv": 131993118,
+          "by_type": {
+            "1L": 126836078,
+            "Equity": 5157040
+          }
+        },
+        {
+          "name": "Tangoe LLC",
+          "sector": "Software & Technology",
+          "total_fv": 128534018,
+          "by_type": {
+            "1L": 128534018
+          }
+        },
+        {
+          "name": "Bonterra LLC",
+          "sector": "Software & Technology",
+          "total_fv": 128364224,
+          "by_type": {
+            "1L": 128364224
+          }
+        },
+        {
+          "name": "Affordable Care Inc",
+          "sector": "Healthcare",
+          "total_fv": 127819594,
+          "by_type": {
+            "1L": 56116900,
+            "Preferred": 71702694
+          }
+        },
+        {
+          "name": "USIC Holdings Inc",
+          "sector": "Business Services",
+          "total_fv": 121232878,
+          "by_type": {
+            "1L": 121232878
+          }
+        },
+        {
+          "name": "Hibu Inc",
+          "sector": "Business Services",
+          "total_fv": 120214115,
+          "by_type": {
+            "1L": 120214115
+          }
+        },
+        {
+          "name": "Frontline Road Safety LLC",
+          "sector": "Industrials",
+          "total_fv": 115374987,
+          "by_type": {
+            "1L": 115374987
+          }
+        },
+        {
+          "name": "Radwell International LLC",
+          "sector": "Industrials",
+          "total_fv": 113507254,
+          "by_type": {
+            "1L": 113507254
+          }
+        },
+        {
+          "name": "Clarience Technologies LLC",
+          "sector": "Industrials",
+          "total_fv": 111469726,
+          "by_type": {
+            "1L": 111469726
+          }
+        },
+        {
+          "name": "Apex Service Partners LLC",
+          "sector": "Business Services",
+          "total_fv": 110450963,
+          "by_type": {
+            "1L": 110450963
+          }
+        },
+        {
+          "name": "KKR Altitude II Offshore Aggregator LP",
+          "sector": "Industrials",
+          "total_fv": 109316685,
+          "by_type": {
+            "ABF": 109316685
+          }
+        },
+        {
+          "name": "3Pillar Global Inc",
+          "sector": "Software & Technology",
+          "total_fv": 107309775,
+          "by_type": {
+            "1L": 107309775
+          }
+        },
+        {
+          "name": "ATX Networks Corp",
+          "sector": "Industrials",
+          "total_fv": 106491538,
+          "by_type": {
+            "1L": 102640441,
+            "Equity": 0,
+            "Unsecured": 3851097
+          }
+        }
+      ],
+      "maturity_buckets": {
+        "Business Services": {
+          "1L": {
+            "2027": 257832109,
+            "2028": 360217859,
+            "2029": 111639520,
+            "2030": 168011111,
+            "2031": 317005299,
+            "2032": 220392543
+          },
+          "2L": {
+            "2034": 5200000,
+            "2036": 0
+          },
+          "ABF": {
+            "none": 195485066
+          },
+          "Equity": {
+            "none": 9024820
+          },
+          "Preferred": {
+            "none": 0
+          },
+          "Unsecured": {
+            "2029": 98746
+          }
+        },
+        "Consumer": {
+          "1L": {
+            "2026": 20035686,
+            "2027": 88038162,
+            "2028": 346973931,
+            "2029": 69700415,
+            "2030": 22922183,
+            "2031": 84557386,
+            "2032": 52636124
+          },
+          "2L": {
+            "2027": 13900000,
+            "2030": 4400000,
+            "2032": 900000
+          },
+          "ABF": {
+            "2029": 57540070,
+            "none": 19463472
+          },
+          "Equity": {
+            "2028": 0,
+            "none": 56330747
+          },
+          "Preferred": {
+            "none": 14677730
+          }
+        },
+        "Energy & Materials": {
+          "1L": {
+            "2031": 58663809
+          },
+          "ABF": {
+            "2028": 66988358
+          },
+          "Equity": {
+            "none": 21223204
+          },
+          "Preferred": {
+            "none": 171174066
+          }
+        },
+        "Financial Services": {
+          "1L": {
+            "2028": 282537128,
+            "2029": 12904340,
+            "2030": 241956375,
+            "2031": 23431565,
+            "2032": 93386671
+          },
+          "ABF": {
+            "2027": 566897,
+            "2030": 18991058,
+            "2032": 377931,
+            "2033": 4062764,
+            "2034": 39021427,
+            "2046": 29951071,
+            "none": 603840048
+          },
+          "Equity": {
+            "none": 4661171
+          },
+          "JV": {
+            "none": 1967900000
+          },
+          "Preferred": {
+            "none": 16958728
+          },
+          "Unsecured": {
+            "2030": 3752351
+          }
+        },
+        "Healthcare": {
+          "1L": {
+            "2026": 13328825,
+            "2027": 148315013,
+            "2028": 503693744,
+            "2029": 168096008,
+            "2030": 9848049,
+            "2031": 304440547,
+            "2032": 122676127
+          },
+          "ABF": {
+            "2029": 39777290
+          },
+          "Bond": {
+            "2030": 2400000,
+            "2032": 28300000
+          },
+          "Equity": {
+            "none": 28363721
+          },
+          "Preferred": {
+            "2029": 13090948,
+            "none": 482084088
+          }
+        },
+        "Industrials": {
+          "1L": {
+            "2026": 102640441,
+            "2027": 58748706,
+            "2028": 171152299,
+            "2029": 138636758,
+            "2030": 8319903,
+            "2031": 83708416,
+            "2032": 432465183
+          },
+          "2L": {
+            "2028": 6800000,
+            "2029": 246600000
+          },
+          "ABF": {
+            "2026": 25510376,
+            "2028": 23431753,
+            "2029": 34864181,
+            "none": 161660197
+          },
+          "Equity": {
+            "none": 24595115
+          },
+          "Preferred": {
+            "2028": 793391,
+            "none": 15471121
+          },
+          "Unsecured": {
+            "2028": 3851097,
+            "2030": 25081505,
+            "2031": 32092476
+          }
+        },
+        "Media & Telecom": {
+          "1L": {
+            "2026": 67068609,
+            "2030": 261058194
+          },
+          "ABF": {
+            "2026": 54800067,
+            "2028": 14550363,
+            "none": 94483
+          },
+          "Equity": {
+            "none": 123570618
+          },
+          "Unsecured": {
+            "2030": 59543887
+          }
+        },
+        "Real Estate & Transportation": {
+          "1L": {
+            "2026": 82944343,
+            "2028": 91094453,
+            "2029": 13753310,
+            "2030": 25978474,
+            "2031": 16300219,
+            "2032": 26572753
+          },
+          "ABF": {
+            "2027": 5668972,
+            "2028": 17668297,
+            "2029": 47052471,
+            "2030": 23431753,
+            "2033": 23148304,
+            "2034": 98356672,
+            "2035": 25037962,
+            "none": 62358697
+          }
+        },
+        "Software & Technology": {
+          "1L": {
+            "2026": 136004952,
+            "2027": 237456835,
+            "2028": 348926561,
+            "2029": 221156616,
+            "2030": 32770232,
+            "2031": 282282437,
+            "2032": 581119784
+          },
+          "2L": {
+            "2029": 260800000
+          },
+          "Bond": {
+            "2029": 23900000
+          },
+          "Equity": {
+            "none": 43537320
+          },
+          "Preferred": {
+            "none": 78843211
+          },
+          "Unsecured": {
+            "2033": 1579937
+          }
+        }
+      }
+    },
+    "GBDC": {
+      "total_fv": 8769389000,
+      "by_sector": {
+        "Software & Technology": {
+          "count": 440,
+          "fair_value": 3137583000,
+          "par": 2883464000
+        },
+        "Healthcare": {
+          "count": 324,
+          "fair_value": 1428459000,
+          "par": 1343186000
+        },
+        "Consumer": {
+          "count": 305,
+          "fair_value": 1253539000,
+          "par": 1104184000
+        },
+        "Business Services": {
+          "count": 236,
+          "fair_value": 956144000,
+          "par": 937384000
+        },
+        "Industrials": {
+          "count": 178,
+          "fair_value": 727663000,
+          "par": 704932000
+        },
+        "Financial Services": {
+          "count": 104,
+          "fair_value": 628856000,
+          "par": 627855000
+        },
+        "Real Estate & Transportation": {
+          "count": 47,
+          "fair_value": 339349000,
+          "par": 335751000
+        },
+        "Energy & Materials": {
+          "count": 44,
+          "fair_value": 278633000,
+          "par": 292269000
+        },
+        "Media & Telecom": {
+          "count": 10,
+          "fair_value": 19163000,
+          "par": 19868000
+        }
+      },
+      "by_seniority": {
+        "Unitranche": {
+          "count": 1238,
+          "fair_value": 7615809000,
+          "par": 7730732000
+        },
+        "1L": {
+          "count": 137,
+          "fair_value": 442477000,
+          "par": 448400000
+        },
+        "Equity": {
+          "count": 203,
+          "fair_value": 440909000,
+          "par": 0
+        },
+        "Preferred": {
+          "count": 80,
+          "fair_value": 205373000,
+          "par": 0
+        },
+        "Unsecured": {
+          "count": 14,
+          "fair_value": 38412000,
+          "par": 38444000
+        },
+        "2L": {
+          "count": 16,
+          "fair_value": 26409000,
+          "par": 31317000
+        }
+      },
+      "sector_x_seniority": {
+        "Business Services": {
+          "1L": 45961000,
+          "2L": 5222000,
+          "Equity": 25047000,
+          "Preferred": 10548000,
+          "Unitranche": 869260000,
+          "Unsecured": 106000
+        },
+        "Consumer": {
+          "1L": 124268000,
+          "2L": 9604000,
+          "Equity": 107791000,
+          "Preferred": 85847000,
+          "Unitranche": 922928000,
+          "Unsecured": 3101000
+        },
+        "Energy & Materials": {
+          "1L": 13421000,
+          "Equity": 2281000,
+          "Preferred": 853000,
+          "Unitranche": 262078000
+        },
+        "Financial Services": {
+          "1L": 2610000,
+          "Equity": 668000,
+          "Preferred": 827000,
+          "Unitranche": 622475000,
+          "Unsecured": 2276000
+        },
+        "Healthcare": {
+          "1L": 147893000,
+          "Equity": 76900000,
+          "Preferred": 37323000,
+          "Unitranche": 1133795000,
+          "Unsecured": 32548000
+        },
+        "Industrials": {
+          "1L": 28493000,
+          "2L": 11583000,
+          "Equity": 30036000,
+          "Preferred": 2397000,
+          "Unitranche": 655154000
+        },
+        "Media & Telecom": {
+          "1L": 1529000,
+          "Unitranche": 17634000
+        },
+        "Real Estate & Transportation": {
+          "1L": 45891000,
+          "Equity": 4674000,
+          "Preferred": 458000,
+          "Unitranche": 288326000
+        },
+        "Software & Technology": {
+          "1L": 32411000,
+          "Equity": 193512000,
+          "Preferred": 67120000,
+          "Unitranche": 2844159000,
+          "Unsecured": 381000
+        }
+      },
+      "top_companies": [
+        {
+          "name": "GS Acquisitionco, Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 181091000,
+          "by_type": {
+            "Equity": 52892000,
+            "Preferred": 7051000,
+            "Unitranche": 121148000
+          }
+        },
+        {
+          "name": "Bayshore Intermediate #2, L.P.",
+          "sector": "Software & Technology",
+          "total_fv": 131762000,
+          "by_type": {
+            "Equity": 7482000,
+            "Unitranche": 124280000
+          }
+        },
+        {
+          "name": "TWAS Holdings, LLC",
+          "sector": "Industrials",
+          "total_fv": 111851000,
+          "by_type": {
+            "Unitranche": 111851000
+          }
+        },
+        {
+          "name": "Chestnut Optical Midco, Inc.",
+          "sector": "Consumer",
+          "total_fv": 101952000,
+          "by_type": {
+            "Equity": 60990000,
+            "Unitranche": 40962000
+          }
+        },
+        {
+          "name": "Liminex, Inc.",
+          "sector": "Business Services",
+          "total_fv": 95134000,
+          "by_type": {
+            "Preferred": 410000,
+            "Unitranche": 94724000
+          }
+        },
+        {
+          "name": "PHM NL SP Bidco B.V.",
+          "sector": "Energy & Materials",
+          "total_fv": 89261000,
+          "by_type": {
+            "Unitranche": 89261000
+          }
+        },
+        {
+          "name": "Blue River Pet Care, LLC",
+          "sector": "Healthcare",
+          "total_fv": 89154000,
+          "by_type": {
+            "Equity": 794000,
+            "Unitranche": 88360000
+          }
+        },
+        {
+          "name": "Riskonnect Parent, LLC",
+          "sector": "Software & Technology",
+          "total_fv": 87434000,
+          "by_type": {
+            "Equity": 1135000,
+            "Preferred": 38051000,
+            "Unitranche": 48248000
+          }
+        },
+        {
+          "name": "Revalize, Inc.",
+          "sector": "Consumer",
+          "total_fv": 87060000,
+          "by_type": {
+            "Equity": 11505000,
+            "Preferred": 34049000,
+            "Unitranche": 41506000
+          }
+        },
+        {
+          "name": "Amalthea Parent, Inc.",
+          "sector": "Healthcare",
+          "total_fv": 85133000,
+          "by_type": {
+            "Equity": 472000,
+            "Unitranche": 84661000
+          }
+        },
+        {
+          "name": "Patriot Growth Insurance Services, LLC",
+          "sector": "Financial Services",
+          "total_fv": 84898000,
+          "by_type": {
+            "Unitranche": 84898000
+          }
+        },
+        {
+          "name": "CCSL Holdings, LLC",
+          "sector": "Healthcare",
+          "total_fv": 84462000,
+          "by_type": {
+            "Preferred": 676000,
+            "Unitranche": 83786000
+          }
+        },
+        {
+          "name": "Bullhorn, Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 84221000,
+          "by_type": {
+            "Unitranche": 84221000
+          }
+        },
+        {
+          "name": "Calabrio, Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 80592000,
+          "by_type": {
+            "Equity": 1037000,
+            "Preferred": 0,
+            "Unitranche": 79555000
+          }
+        },
+        {
+          "name": "BJH Holdings III Corp.",
+          "sector": "Consumer",
+          "total_fv": 75692000,
+          "by_type": {
+            "Unitranche": 75692000
+          }
+        },
+        {
+          "name": "Transaction Data Systems, Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 74490000,
+          "by_type": {
+            "Unitranche": 74490000
+          }
+        },
+        {
+          "name": "Pareto Health Intermediate Holdings, Inc.",
+          "sector": "Financial Services",
+          "total_fv": 74088000,
+          "by_type": {
+            "Unitranche": 74088000
+          }
+        },
+        {
+          "name": "Denali Midco 2, LLC",
+          "sector": "Industrials",
+          "total_fv": 73884000,
+          "by_type": {
+            "2L": 11583000,
+            "Unitranche": 62301000
+          }
+        },
+        {
+          "name": "GTIV, LLC",
+          "sector": "Software & Technology",
+          "total_fv": 71983000,
+          "by_type": {
+            "Unitranche": 71983000
+          }
+        },
+        {
+          "name": "Sonatype, Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 69460000,
+          "by_type": {
+            "Unitranche": 69460000
+          }
+        },
+        {
+          "name": "People Corporation",
+          "sector": "Financial Services",
+          "total_fv": 68232000,
+          "by_type": {
+            "Unitranche": 68232000
+          }
+        },
+        {
+          "name": "Radwell Parent, LLC",
+          "sector": "Business Services",
+          "total_fv": 67360000,
+          "by_type": {
+            "Preferred": 467000,
+            "Unitranche": 66893000
+          }
+        },
+        {
+          "name": "Mindbody, Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 64100000,
+          "by_type": {
+            "Unitranche": 64100000
+          }
+        },
+        {
+          "name": "Dwyer Instruments, Inc.",
+          "sector": "Industrials",
+          "total_fv": 62971000,
+          "by_type": {
+            "Unitranche": 62971000
+          }
+        },
+        {
+          "name": "Acuity Eyecare Holdings, LLC",
+          "sector": "Healthcare",
+          "total_fv": 62656000,
+          "by_type": {
+            "1L": 107000,
+            "Equity": 9335000,
+            "Unitranche": 53214000
+          }
+        }
+      ],
+      "maturity_buckets": {
+        "Business Services": {
+          "1L": {
+            "2027": 17919000,
+            "2028": 10908000,
+            "2029": 9983000,
+            "2031": 7151000
+          },
+          "2L": {
+            "2028": 5222000
+          },
+          "Equity": {
+            "none": 25047000
+          },
+          "Preferred": {
+            "none": 10548000
+          },
+          "Unitranche": {
+            "2026": 126283000,
+            "2027": 107535000,
+            "2028": 140574000,
+            "2029": 205334000,
+            "2030": 104703000,
+            "2031": 174535000,
+            "2032": 10296000
+          },
+          "Unsecured": {
+            "2029": 106000
+          }
+        },
+        "Consumer": {
+          "1L": {
+            "2025": 16599000,
+            "2026": 5242000,
+            "2028": 57512000,
+            "2029": 14507000,
+            "2032": 30408000
+          },
+          "2L": {
+            "2027": 210000,
+            "2029": 9394000
+          },
+          "Equity": {
+            "none": 107791000
+          },
+          "Preferred": {
+            "none": 85847000
+          },
+          "Unitranche": {
+            "2026": 156836000,
+            "2027": 153116000,
+            "2028": 115780000,
+            "2029": 240131000,
+            "2030": 112317000,
+            "2031": 80297000,
+            "2032": 64451000
+          },
+          "Unsecured": {
+            "2030": 74000,
+            "2033": 3027000
+          }
+        },
+        "Energy & Materials": {
+          "1L": {
+            "2029": 13421000
+          },
+          "Equity": {
+            "none": 2281000
+          },
+          "Preferred": {
+            "none": 853000
+          },
+          "Unitranche": {
+            "2027": 19912000,
+            "2028": 194598000,
+            "2029": 35073000,
+            "2031": 0,
+            "2032": 12495000
+          }
+        },
+        "Financial Services": {
+          "1L": {
+            "2032": 2610000
+          },
+          "Equity": {
+            "none": 668000
+          },
+          "Preferred": {
+            "none": 827000
+          },
+          "Unitranche": {
+            "2027": 31888000,
+            "2028": 316602000,
+            "2029": 31757000,
+            "2030": 94149000,
+            "2031": 53689000,
+            "2032": 94390000
+          },
+          "Unsecured": {
+            "2032": 2276000
+          }
+        },
+        "Healthcare": {
+          "1L": {
+            "2026": 20698000,
+            "2027": 2609000,
+            "2028": 99463000,
+            "2031": 25123000
+          },
+          "Equity": {
+            "none": 76900000
+          },
+          "Preferred": {
+            "none": 37323000
+          },
+          "Unitranche": {
+            "2026": 110791000,
+            "2027": 349052000,
+            "2028": 216708000,
+            "2029": 247910000,
+            "2030": 50257000,
+            "2031": 68533000,
+            "2032": 90544000
+          },
+          "Unsecured": {
+            "2026": 5832000,
+            "2028": 23684000,
+            "2031": 3032000
+          }
+        },
+        "Industrials": {
+          "1L": {
+            "2026": 19375000,
+            "2027": 7146000,
+            "2029": 1972000
+          },
+          "2L": {
+            "2029": 11583000
+          },
+          "Equity": {
+            "none": 30036000
+          },
+          "Preferred": {
+            "none": 2397000
+          },
+          "Unitranche": {
+            "2026": 164049000,
+            "2027": 132667000,
+            "2028": 103089000,
+            "2029": 148934000,
+            "2030": 35630000,
+            "2031": 68280000,
+            "2032": 2505000
+          }
+        },
+        "Media & Telecom": {
+          "1L": {
+            "2027": 1529000
+          },
+          "Unitranche": {
+            "2028": 8141000,
+            "2030": 7678000,
+            "2031": 1815000
+          }
+        },
+        "Real Estate & Transportation": {
+          "1L": {
+            "2027": 44400000,
+            "2032": 1491000
+          },
+          "Equity": {
+            "none": 4674000
+          },
+          "Preferred": {
+            "none": 458000
+          },
+          "Unitranche": {
+            "2026": 9085000,
+            "2027": 40769000,
+            "2028": 104528000,
+            "2029": 34116000,
+            "2030": 6987000,
+            "2031": 77112000,
+            "2032": 15729000
+          }
+        },
+        "Software & Technology": {
+          "1L": {
+            "2026": 67000,
+            "2027": 14850000,
+            "2029": 17494000
+          },
+          "Equity": {
+            "none": 193512000
+          },
+          "Preferred": {
+            "none": 67120000
+          },
+          "Unitranche": {
+            "2025": 37481000,
+            "2026": 110276000,
+            "2027": 365015000,
+            "2028": 776098000,
+            "2029": 568680000,
+            "2030": 236496000,
+            "2031": 656685000,
+            "2032": 88155000,
+            "2034": 358000,
+            "none": 4915000
+          },
+          "Unsecured": {
+            "2031": 132000,
+            "2032": 249000
+          }
+        }
+      }
+    },
+    "OBDC": {
+      "total_fv": 16474285000,
+      "by_sector": {
+        "Financial Services": {
+          "count": 48,
+          "fair_value": 3151470000,
+          "par": 1470039000
+        },
+        "Software & Technology": {
+          "count": 85,
+          "fair_value": 2881014000,
+          "par": 2668865000
+        },
+        "Healthcare": {
+          "count": 76,
+          "fair_value": 2430856000,
+          "par": 3566296000
+        },
+        "Consumer": {
+          "count": 47,
+          "fair_value": 2172693000,
+          "par": 4403853000
+        },
+        "Business Services": {
+          "count": 51,
+          "fair_value": 1881138000,
+          "par": 1766774000
+        },
+        "Industrials": {
+          "count": 29,
+          "fair_value": 1633451000,
+          "par": 1157012000
+        },
+        "Energy & Materials": {
+          "count": 15,
+          "fair_value": 1089764000,
+          "par": 1047589000
+        },
+        "Real Estate & Transportation": {
+          "count": 8,
+          "fair_value": 827669000,
+          "par": 827895000
+        },
+        "Media & Telecom": {
+          "count": 6,
+          "fair_value": 406230000,
+          "par": 348840000
+        }
+      },
+      "by_seniority": {
+        "1L": {
+          "count": 211,
+          "fair_value": 11814652000,
+          "par": 12120192000
+        },
+        "Equity": {
+          "count": 46,
+          "fair_value": 1981260000,
+          "par": 0
+        },
+        "2L": {
+          "count": 12,
+          "fair_value": 848575000,
+          "par": 995742000
+        },
+        "Preferred": {
+          "count": 16,
+          "fair_value": 568977000,
+          "par": 0
+        },
+        "Unsecured": {
+          "count": 10,
+          "fair_value": 552565000,
+          "par": 517849000
+        },
+        "JV": {
+          "count": 1,
+          "fair_value": 415248000,
+          "par": 0
+        },
+        "DDTL": {
+          "count": 22,
+          "fair_value": 154618000,
+          "par": 163643000
+        },
+        "Revolver": {
+          "count": 35,
+          "fair_value": 83056000,
+          "par": 118756000
+        },
+        "Unknown": {
+          "count": 11,
+          "fair_value": 50640000,
+          "par": 3336287000
+        },
+        "Bond": {
+          "count": 1,
+          "fair_value": 4694000,
+          "par": 4694000
+        }
+      },
+      "sector_x_seniority": {
+        "Business Services": {
+          "Unknown": 4522000,
+          "1L": 1554473000,
+          "2L": 144375000,
+          "DDTL": 14783000,
+          "Equity": 63779000,
+          "Preferred": 84190000,
+          "Revolver": 5899000,
+          "Unsecured": 9117000
+        },
+        "Consumer": {
+          "Unknown": 3339000,
+          "1L": 2010134000,
+          "2L": 95267000,
+          "Equity": 41971000,
+          "Preferred": 0,
+          "Revolver": 13553000,
+          "Unsecured": 8429000
+        },
+        "Energy & Materials": {
+          "1L": 823590000,
+          "2L": 207226000,
+          "Preferred": 46058000,
+          "Revolver": 12890000
+        },
+        "Financial Services": {
+          "1L": 1016912000,
+          "2L": 149625000,
+          "DDTL": 18622000,
+          "Equity": 1209079000,
+          "JV": 415248000,
+          "Preferred": 31060000,
+          "Revolver": 162000,
+          "Unsecured": 310762000
+        },
+        "Healthcare": {
+          "Unknown": 42779000,
+          "1L": 2054748000,
+          "2L": 29025000,
+          "DDTL": 56614000,
+          "Equity": 221242000,
+          "Preferred": 16763000,
+          "Revolver": 9685000
+        },
+        "Industrials": {
+          "1L": 899777000,
+          "2L": 164807000,
+          "DDTL": 17031000,
+          "Equity": 280766000,
+          "Preferred": 251546000,
+          "Revolver": 19524000
+        },
+        "Media & Telecom": {
+          "1L": 318829000,
+          "Equity": 87401000
+        },
+        "Real Estate & Transportation": {
+          "1L": 621961000,
+          "Equity": 314000,
+          "Preferred": 32000,
+          "Revolver": 2494000,
+          "Unsecured": 202868000
+        },
+        "Software & Technology": {
+          "1L": 2514228000,
+          "2L": 58250000,
+          "Bond": 4694000,
+          "DDTL": 47568000,
+          "Equity": 76708000,
+          "Preferred": 139328000,
+          "Revolver": 18849000,
+          "Unsecured": 21389000
+        }
+      },
+      "top_companies": [
+        {
+          "name": "Wingspire Capital Holdings LLC",
+          "sector": "Financial Services",
+          "total_fv": 607284000,
+          "by_type": {
+            "Equity": 607284000
+          }
+        },
+        {
+          "name": "Associations, Inc.",
+          "sector": "Real Estate & Transportation",
+          "total_fv": 446001000,
+          "by_type": {
+            "1L": 446001000
+          }
+        },
+        {
+          "name": "Blue Owl Credit SLF LLC",
+          "sector": "Financial Services",
+          "total_fv": 415248000,
+          "by_type": {
+            "JV": 415248000
+          }
+        },
+        {
+          "name": "Fifth Season Investments LLC",
+          "sector": "Financial Services",
+          "total_fv": 403170000,
+          "by_type": {
+            "Equity": 403170000
+          }
+        },
+        {
+          "name": "Rushmore Investment III LLC (dba Winland Foods)",
+          "sector": "Consumer",
+          "total_fv": 357284000,
+          "by_type": {
+            "1L": 357284000
+          }
+        },
+        {
+          "name": "Sonny's Enterprises, LLC",
+          "sector": "Industrials",
+          "total_fv": 310709000,
+          "by_type": {
+            "1L": 288422000,
+            "DDTL": 12896000,
+            "Revolver": 9391000
+          }
+        },
+        {
+          "name": "Rocket BidCo, Inc. (dba Recochem)",
+          "sector": "Energy & Materials",
+          "total_fv": 260359000,
+          "by_type": {
+            "1L": 260359000
+          }
+        },
+        {
+          "name": "Minotaur Acquisition, Inc. (dba Inspira Financial)",
+          "sector": "Financial Services",
+          "total_fv": 255802000,
+          "by_type": {
+            "1L": 255802000
+          }
+        },
+        {
+          "name": "Metis HoldCo, Inc. (dba Mavis Tire Express Services)",
+          "sector": "Industrials",
+          "total_fv": 251546000,
+          "by_type": {
+            "Preferred": 251546000
+          }
+        },
+        {
+          "name": "LSI Financing LLC",
+          "sector": "Healthcare",
+          "total_fv": 210634000,
+          "by_type": {
+            "Equity": 210634000
+          }
+        },
+        {
+          "name": "BCPE Osprey Buyer, Inc. (dba PartsSource)",
+          "sector": "Software & Technology",
+          "total_fv": 209409000,
+          "by_type": {
+            "1L": 160011000,
+            "DDTL": 34989000,
+            "Revolver": 14409000
+          }
+        },
+        {
+          "name": "Aerosmith Bidco 1 Limited (dba Audiotonix)",
+          "sector": "Consumer",
+          "total_fv": 208759000,
+          "by_type": {
+            "1L": 208759000
+          }
+        },
+        {
+          "name": "Inovalon Holdings, Inc.",
+          "sector": "Software & Technology",
+          "total_fv": 208529000,
+          "by_type": {
+            "1L": 150279000,
+            "2L": 58250000
+          }
+        },
+        {
+          "name": "Associations Finance, Inc.",
+          "sector": "Real Estate & Transportation",
+          "total_fv": 202868000,
+          "by_type": {
+            "Unsecured": 202868000
+          }
+        },
+        {
+          "name": "Gaylord Chemical Company, L.L.C.",
+          "sector": "Energy & Materials",
+          "total_fv": 194252000,
+          "by_type": {
+            "1L": 183647000,
+            "Revolver": 10605000
+          }
+        },
+        {
+          "name": "Pregis Topco LLC",
+          "sector": "Energy & Materials",
+          "total_fv": 192500000,
+          "by_type": {
+            "2L": 192500000
+          }
+        },
+        {
+          "name": "HGH Purchaser, Inc. (dba Horizon Services)",
+          "sector": "Consumer",
+          "total_fv": 189277000,
+          "by_type": {
+            "1L": 179760000,
+            "Revolver": 9517000
+          }
+        },
+        {
+          "name": "Packaging Coordinators Midco, Inc.",
+          "sector": "Healthcare",
+          "total_fv": 177293000,
+          "by_type": {
+            "1L": 157186000,
+            "DDTL": 20107000
+          }
+        },
+        {
+          "name": "Intelerad Medical Systems Incorporated (fka 11849573 Canada Inc.)",
+          "sector": "Software & Technology",
+          "total_fv": 168668000,
+          "by_type": {
+            "1L": 168668000
+          }
+        },
+        {
+          "name": "OB Hospitalist Group, Inc.",
+          "sector": "Healthcare",
+          "total_fv": 164531000,
+          "by_type": {
+            "1L": 164531000
+          }
+        },
+        {
+          "name": "Galls, LLC",
+          "sector": "Consumer",
+          "total_fv": 162512000,
+          "by_type": {
+            "1L": 162512000
+          }
+        },
+        {
+          "name": "Litera Bidco LLC",
+          "sector": "Software & Technology",
+          "total_fv": 161317000,
+          "by_type": {
+            "1L": 161317000
+          }
+        },
+        {
+          "name": "Patriot Acquisition TopCo S.\u00c0 R.L. (dba Corza Health, Inc.)",
+          "sector": "Healthcare",
+          "total_fv": 157996000,
+          "by_type": {
+            "1L": 157996000
+          }
+        },
+        {
+          "name": "Gerson Lehrman Group, Inc.",
+          "sector": "Business Services",
+          "total_fv": 155495000,
+          "by_type": {
+            "1L": 155495000
+          }
+        },
+        {
+          "name": "Monotype Imaging Holdings Inc.",
+          "sector": "Media & Telecom",
+          "total_fv": 151694000,
+          "by_type": {
+            "1L": 151694000
+          }
+        }
+      ],
+      "maturity_buckets": {
+        "Business Services": {
+          "Unknown": {
+            "none": 4522000
+          },
+          "1L": {
+            "2026": 4161000,
+            "2027": 32919000,
+            "2028": 833529000,
+            "2029": 147729000,
+            "2030": 157797000,
+            "2031": 378338000
+          },
+          "2L": {
+            "2029": 144375000
+          },
+          "DDTL": {
+            "2028": 2120000,
+            "2031": 12663000
+          },
+          "Equity": {
+            "none": 63779000
+          },
+          "Preferred": {
+            "none": 84190000
+          },
+          "Revolver": {
+            "2026": -7000,
+            "2028": 2423000,
+            "2029": 48000,
+            "2030": 3435000
+          },
+          "Unsecured": {
+            "2029": 9117000
+          }
+        },
+        "Consumer": {
+          "Unknown": {
+            "none": 3339000
+          },
+          "1L": {
+            "2026": 14648000,
+            "2027": 247706000,
+            "2028": 327667000,
+            "2029": 252976000,
+            "2030": 707521000,
+            "2031": 290768000,
+            "2032": 168848000
+          },
+          "2L": {
+            "2029": 95267000
+          },
+          "Equity": {
+            "none": 41971000
+          },
+          "Preferred": {
+            "none": 0
+          },
+          "Revolver": {
+            "2027": 0,
+            "2028": 11210000,
+            "2029": 2343000
+          },
+          "Unsecured": {
+            "2032": 8429000
+          }
+        },
+        "Energy & Materials": {
+          "1L": {
+            "2027": 183647000,
+            "2028": 117715000,
+            "2029": 79931000,
+            "2030": 260359000,
+            "2031": 80569000,
+            "2032": 101369000
+          },
+          "2L": {
+            "2028": 14726000,
+            "2029": 192500000
+          },
+          "Preferred": {
+            "none": 46058000
+          },
+          "Revolver": {
+            "2027": 11586000,
+            "2031": 1304000
+          }
+        },
+        "Financial Services": {
+          "1L": {
+            "2027": 52568000,
+            "2028": 145629000,
+            "2029": 103947000,
+            "2030": 389514000,
+            "2031": 182824000,
+            "2032": 142430000
+          },
+          "2L": {
+            "2033": 149625000
+          },
+          "DDTL": {
+            "2027": 17919000,
+            "2028": 703000
+          },
+          "Equity": {
+            "none": 1209079000
+          },
+          "JV": {
+            "none": 415248000
+          },
+          "Preferred": {
+            "none": 31060000
+          },
+          "Revolver": {
+            "2028": 162000,
+            "2029": 0
+          },
+          "Unsecured": {
+            "2027": 89928000,
+            "2029": 62537000,
+            "2030": 157297000,
+            "2034": 1000000
+          }
+        },
+        "Healthcare": {
+          "Unknown": {
+            "none": 42779000
+          },
+          "1L": {
+            "2026": 107237000,
+            "2027": 164531000,
+            "2028": 361470000,
+            "2029": 297468000,
+            "2030": 188455000,
+            "2031": 403876000,
+            "2032": 531711000
+          },
+          "2L": {
+            "2030": 29025000
+          },
+          "DDTL": {
+            "2026": 16230000,
+            "2029": 19421000,
+            "2030": 856000,
+            "2032": 20107000
+          },
+          "Equity": {
+            "none": 221242000
+          },
+          "Preferred": {
+            "none": 16763000
+          },
+          "Revolver": {
+            "2026": 8204000,
+            "2028": 123000,
+            "2029": 0,
+            "2031": 1358000
+          }
+        },
+        "Industrials": {
+          "1L": {
+            "2027": 132009000,
+            "2028": 531320000,
+            "2029": 31581000,
+            "2030": 939000,
+            "2031": 113281000,
+            "2032": 90647000
+          },
+          "2L": {
+            "2027": 117513000,
+            "2029": 47294000
+          },
+          "DDTL": {
+            "2028": 17031000
+          },
+          "Equity": {
+            "none": 280766000
+          },
+          "Preferred": {
+            "none": 251546000
+          },
+          "Revolver": {
+            "2027": 9391000,
+            "2028": 522000,
+            "2030": 8999000,
+            "2032": 612000
+          }
+        },
+        "Media & Telecom": {
+          "1L": {
+            "2027": 114911000,
+            "2029": 52224000,
+            "2031": 151694000
+          },
+          "Equity": {
+            "none": 87401000
+          }
+        },
+        "Real Estate & Transportation": {
+          "1L": {
+            "2028": 517006000,
+            "2030": 4789000,
+            "2032": 100166000
+          },
+          "Equity": {
+            "none": 314000
+          },
+          "Preferred": {
+            "none": 32000
+          },
+          "Revolver": {
+            "2031": 2494000
+          },
+          "Unsecured": {
+            "2030": 202868000
+          }
+        },
+        "Software & Technology": {
+          "1L": {
+            "2026": 168668000,
+            "2027": 230573000,
+            "2028": 1050941000,
+            "2029": 143829000,
+            "2030": 311004000,
+            "2031": 428346000,
+            "2032": 180867000
+          },
+          "2L": {
+            "2033": 58250000
+          },
+          "Bond": {
+            "2030": 4694000
+          },
+          "DDTL": {
+            "2028": 34989000,
+            "2030": 9938000,
+            "2031": 2641000
+          },
+          "Equity": {
+            "none": 76708000
+          },
+          "Preferred": {
+            "none": 139328000
+          },
+          "Revolver": {
+            "2026": 14409000,
+            "2027": 2125000,
+            "2030": 1545000,
+            "2031": 770000
+          },
+          "Unsecured": {
+            "2034": 21389000
+          }
+        }
+      }
+    }
+  },
+  "pik_summary": {
+    "by_bdc": {
+      "ARCC": {
+        "count": 177,
+        "fv": 5943000000,
+        "wt_avg_pik": 7.66,
+        "portfolio_fv": 29484800000
+      },
+      "BXSL": {
+        "count": 82,
+        "fv": 2217497000,
+        "wt_avg_pik": 3.63,
+        "portfolio_fv": 14149560000
+      },
+      "FSK": {
+        "count": 60,
+        "fv": 2466267632,
+        "wt_avg_pik": 6.61,
+        "portfolio_fv": 13008600000
+      },
+      "GBDC": {
+        "count": 243,
+        "fv": 1702826000,
+        "wt_avg_pik": 5.43,
+        "portfolio_fv": 8769389000
+      },
+      "OBDC": {
+        "count": 62,
+        "fv": 2557695000,
+        "wt_avg_pik": 7.57,
+        "portfolio_fv": 16474285000
+      }
+    },
+    "by_sector": {
+      "Business Services": {
+        "count": 62,
+        "fv": 1307580555,
+        "wt_avg_pik": 4.74,
+        "portfolio_fv": 10438094073
+      },
+      "Consumer": {
+        "count": 118,
+        "fv": 1318719489,
+        "wt_avg_pik": 5.48,
+        "portfolio_fv": 9180623905
+      },
+      "Energy & Materials": {
+        "count": 20,
+        "fv": 598084000,
+        "wt_avg_pik": 5.53,
+        "portfolio_fv": 3449116437
+      },
+      "Financial Services": {
+        "count": 46,
+        "fv": 1353236641,
+        "wt_avg_pik": 8.1,
+        "portfolio_fv": 14836082525
+      },
+      "Healthcare": {
+        "count": 99,
+        "fv": 3700054873,
+        "wt_avg_pik": 7.27,
+        "portfolio_fv": 11571947359
+      },
+      "Industrials": {
+        "count": 43,
+        "fv": 990387904,
+        "wt_avg_pik": 5.97,
+        "portfolio_fv": 6880370917
+      },
+      "Media & Telecom": {
+        "count": 20,
+        "fv": 818513223,
+        "wt_avg_pik": 8.38,
+        "portfolio_fv": 2372986220
+      },
+      "Real Estate & Transportation": {
+        "count": 18,
+        "fv": 443315546,
+        "wt_avg_pik": 9.66,
+        "portfolio_fv": 2999120679
+      },
+      "Software & Technology": {
+        "count": 198,
+        "fv": 4357393404,
+        "wt_avg_pik": 6.16,
+        "portfolio_fv": 20158291885
+      }
+    },
+    "by_bdc_sector": {
+      "ARCC": {
+        "Business Services": {
+          "count": 16,
+          "fv": 187800000,
+          "wt_avg_pik": 7.73
+        },
+        "Consumer": {
+          "count": 38,
+          "fv": 493500000,
+          "wt_avg_pik": 6.52
+        },
+        "Energy & Materials": {
+          "count": 11,
+          "fv": 433600000,
+          "wt_avg_pik": 5.04
+        },
+        "Financial Services": {
+          "count": 14,
+          "fv": 459300000,
+          "wt_avg_pik": 10.11
+        },
+        "Healthcare": {
+          "count": 29,
+          "fv": 1617700000,
+          "wt_avg_pik": 7.7
+        },
+        "Industrials": {
+          "count": 14,
+          "fv": 266300000,
+          "wt_avg_pik": 5.52
+        },
+        "Media & Telecom": {
+          "count": 18,
+          "fv": 576500000,
+          "wt_avg_pik": 8.77
+        },
+        "Software & Technology": {
+          "count": 37,
+          "fv": 1908300000,
+          "wt_avg_pik": 7.87
+        }
+      },
+      "BXSL": {
+        "Business Services": {
+          "count": 10,
+          "fv": 453615000,
+          "wt_avg_pik": 2.95
+        },
+        "Consumer": {
+          "count": 4,
+          "fv": 70585000,
+          "wt_avg_pik": 1.91
+        },
+        "Financial Services": {
+          "count": 10,
+          "fv": 203469000,
+          "wt_avg_pik": 2.0
+        },
+        "Healthcare": {
+          "count": 6,
+          "fv": 725732000,
+          "wt_avg_pik": 4.59
+        },
+        "Industrials": {
+          "count": 6,
+          "fv": 29640000,
+          "wt_avg_pik": 5.33
+        },
+        "Real Estate & Transportation": {
+          "count": 8,
+          "fv": 32197000,
+          "wt_avg_pik": 2.87
+        },
+        "Software & Technology": {
+          "count": 38,
+          "fv": 702259000,
+          "wt_avg_pik": 3.69
+        }
+      },
+      "FSK": {
+        "Business Services": {
+          "count": 5,
+          "fv": 322452555,
+          "wt_avg_pik": 5.22
+        },
+        "Consumer": {
+          "count": 8,
+          "fv": 85372489,
+          "wt_avg_pik": 3.67
+        },
+        "Financial Services": {
+          "count": 8,
+          "fv": 155537641,
+          "wt_avg_pik": 8.93
+        },
+        "Healthcare": {
+          "count": 11,
+          "fv": 773714873,
+          "wt_avg_pik": 8.18
+        },
+        "Industrials": {
+          "count": 10,
+          "fv": 316924904,
+          "wt_avg_pik": 5.68
+        },
+        "Media & Telecom": {
+          "count": 1,
+          "fv": 232193223,
+          "wt_avg_pik": 7.5
+        },
+        "Real Estate & Transportation": {
+          "count": 6,
+          "fv": 192839546,
+          "wt_avg_pik": 6.14
+        },
+        "Software & Technology": {
+          "count": 11,
+          "fv": 387232404,
+          "wt_avg_pik": 4.84
+        }
+      },
+      "GBDC": {
+        "Business Services": {
+          "count": 25,
+          "fv": 217582000,
+          "wt_avg_pik": 3.61
+        },
+        "Consumer": {
+          "count": 58,
+          "fv": 240297000,
+          "wt_avg_pik": 4.85
+        },
+        "Energy & Materials": {
+          "count": 8,
+          "fv": 118426000,
+          "wt_avg_pik": 4.03
+        },
+        "Financial Services": {
+          "count": 5,
+          "fv": 9644000,
+          "wt_avg_pik": 3.53
+        },
+        "Healthcare": {
+          "count": 39,
+          "fv": 214478000,
+          "wt_avg_pik": 9.07
+        },
+        "Industrials": {
+          "count": 11,
+          "fv": 104510000,
+          "wt_avg_pik": 5.76
+        },
+        "Real Estate & Transportation": {
+          "count": 2,
+          "fv": 15379000,
+          "wt_avg_pik": 7.5
+        },
+        "Software & Technology": {
+          "count": 95,
+          "fv": 782510000,
+          "wt_avg_pik": 5.26
+        }
+      },
+      "OBDC": {
+        "Business Services": {
+          "count": 6,
+          "fv": 126131000,
+          "wt_avg_pik": 7.4
+        },
+        "Consumer": {
+          "count": 10,
+          "fv": 428965000,
+          "wt_avg_pik": 5.58
+        },
+        "Energy & Materials": {
+          "count": 1,
+          "fv": 46058000,
+          "wt_avg_pik": 14.0
+        },
+        "Financial Services": {
+          "count": 9,
+          "fv": 525286000,
+          "wt_avg_pik": 8.54
+        },
+        "Healthcare": {
+          "count": 14,
+          "fv": 368430000,
+          "wt_avg_pik": 7.67
+        },
+        "Industrials": {
+          "count": 2,
+          "fv": 273013000,
+          "wt_avg_pik": 6.89
+        },
+        "Media & Telecom": {
+          "count": 1,
+          "fv": 9820000,
+          "wt_avg_pik": 6.0
+        },
+        "Real Estate & Transportation": {
+          "count": 2,
+          "fv": 202900000,
+          "wt_avg_pik": 14.25
+        },
+        "Software & Technology": {
+          "count": 17,
+          "fv": 577092000,
+          "wt_avg_pik": 5.63
+        }
+      }
+    },
+    "top_positions": [
+      {
+        "ticker": "FSK",
+        "name": "athenahealth Inc",
+        "sector": "Healthcare",
+        "type": "Preferred",
+        "pik_rate": 10.8,
+        "fv": 380530065
+      },
+      {
+        "ticker": "BXSL",
+        "name": "Snoopy Bidco, Inc.",
+        "sector": "Healthcare",
+        "type": "1L",
+        "pik_rate": 5.5,
+        "fv": 339635000
+      },
+      {
+        "ticker": "ARCC",
+        "name": "AthenaHealth Group Inc., Minerva Holdco, Inc. and BCPE Co-Invest (A), LP",
+        "sector": "Healthcare",
+        "type": "Preferred",
+        "pik_rate": 10.75,
+        "fv": 301200000
+      },
+      {
+        "ticker": "BXSL",
+        "name": "JSS Holdings, Inc.",
+        "sector": "Business Services",
+        "type": "1L",
+        "pik_rate": 2.75,
+        "fv": 290582000
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Plaskolite PPC Intermediate II LLC and Plaskolite PPC Blocker LLC",
+        "sector": "Energy & Materials",
+        "type": "1L",
+        "pik_rate": 4.0,
+        "fv": 258800000
+      },
+      {
+        "ticker": "OBDC",
+        "name": "Metis HoldCo, Inc. (dba Mavis Tire Express Services)",
+        "sector": "Industrials",
+        "type": "Preferred",
+        "pik_rate": 7.0,
+        "fv": 251546000
+      },
+      {
+        "ticker": "ARCC",
+        "name": "High Street Buyer, Inc. and High Street Holdco LLC",
+        "sector": "Financial Services",
+        "type": "Preferred",
+        "pik_rate": 10.0,
+        "fv": 248000000
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Adonis Bidco Inc.",
+        "sector": "Software & Technology",
+        "type": "1L",
+        "pik_rate": 3.0,
+        "fv": 235500000
+      },
+      {
+        "ticker": "FSK",
+        "name": "Production Resource Group LLC",
+        "sector": "Media & Telecom",
+        "type": "1L",
+        "pik_rate": 7.5,
+        "fv": 232193223
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Himalaya TopCo LLC and BCPE Hyperlink Holdings, LP",
+        "sector": "Healthcare",
+        "type": "1L",
+        "pik_rate": 2.25,
+        "fv": 230300000
+      },
+      {
+        "ticker": "BXSL",
+        "name": "Navigator Acquiror, Inc.",
+        "sector": "Healthcare",
+        "type": "1L",
+        "pik_rate": 4.0,
+        "fv": 225532000
+      },
+      {
+        "ticker": "OBDC",
+        "name": "Associations Finance, Inc.",
+        "sector": "Real Estate & Transportation",
+        "type": "Unsecured",
+        "pik_rate": 14.25,
+        "fv": 202868000
+      },
+      {
+        "ticker": "FSK",
+        "name": "Kellermeyer Bergensons Services LLC",
+        "sector": "Business Services",
+        "type": "1L",
+        "pik_rate": 5.3,
+        "fv": 187028033
+      },
+      {
+        "ticker": "BXSL",
+        "name": "Inovalon Holdings, Inc.",
+        "sector": "Software & Technology",
+        "type": "1L",
+        "pik_rate": 2.75,
+        "fv": 184968000
+      },
+      {
+        "ticker": "OBDC",
+        "name": "HGH Purchaser, Inc. (dba Horizon Services)",
+        "sector": "Consumer",
+        "type": "1L",
+        "pik_rate": 3.75,
+        "fv": 179760000
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Digicert, Inc., Dcert Buyer, Inc., DCert Preferred Holdings, Inc. and Destiny Digital Holdings, L.P.",
+        "sector": "Software & Technology",
+        "type": "Preferred",
+        "pik_rate": 10.5,
+        "fv": 178900000
+      },
+      {
+        "ticker": "FSK",
+        "name": "Medallia Inc",
+        "sector": "Software & Technology",
+        "type": "1L",
+        "pik_rate": 4.0,
+        "fv": 156804710
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Cornerstone OnDemand, Inc. and Sunshine Software Holdings, Inc.",
+        "sector": "Software & Technology",
+        "type": "Preferred",
+        "pik_rate": 10.5,
+        "fv": 152300000
+      },
+      {
+        "ticker": "OBDC",
+        "name": "Inovalon Holdings, Inc.",
+        "sector": "Software & Technology",
+        "type": "1L",
+        "pik_rate": 2.75,
+        "fv": 150279000
+      },
+      {
+        "ticker": "ARCC",
+        "name": "WorkWave Intermediate II, LLC",
+        "sector": "Software & Technology",
+        "type": "1L",
+        "pik_rate": 3.13,
+        "fv": 142500000
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Severin Acquisition, LLC",
+        "sector": "Software & Technology",
+        "type": "1L",
+        "pik_rate": 2.25,
+        "fv": 141400000
+      },
+      {
+        "ticker": "ARCC",
+        "name": "BVI Medical, Inc. and BVI Group Limited",
+        "sector": "Healthcare",
+        "type": "1L",
+        "pik_rate": 5.0,
+        "fv": 136000000
+      },
+      {
+        "ticker": "OBDC",
+        "name": "Ex Vivo Parent Inc. (dba OB Hospitalist)",
+        "sector": "Healthcare",
+        "type": "1L",
+        "pik_rate": 9.5,
+        "fv": 132032000
+      },
+      {
+        "ticker": "FSK",
+        "name": "Tangoe LLC",
+        "sector": "Software & Technology",
+        "type": "1L",
+        "pik_rate": 1.7,
+        "fv": 128534018
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Miami Beckham United LLC",
+        "sector": "Media & Telecom",
+        "type": "Preferred",
+        "pik_rate": 9.5,
+        "fv": 124900000
+      },
+      {
+        "ticker": "GBDC",
+        "name": "Bayshore Intermediate #2, L.P.",
+        "sector": "Software & Technology",
+        "type": "Unitranche",
+        "pik_rate": 3.0,
+        "fv": 124185000
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Huskies Parent, Inc., GI Insurity Parent LLC and GI Insurity TopCo LP",
+        "sector": "Software & Technology",
+        "type": "Unsecured",
+        "pik_rate": 10.0,
+        "fv": 121800000
+      },
+      {
+        "ticker": "ARCC",
+        "name": "ID.me, LLC and ID.me, Inc.",
+        "sector": "Software & Technology",
+        "type": "1L",
+        "pik_rate": 5.25,
+        "fv": 119700000
+      },
+      {
+        "ticker": "OBDC",
+        "name": "Deerfield Dakota Holdings",
+        "sector": "Financial Services",
+        "type": "1L",
+        "pik_rate": 2.75,
+        "fv": 116275000
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Centralsquare Technologies, LLC and Supermoose Newco, Inc.",
+        "sector": "Software & Technology",
+        "type": "Preferred",
+        "pik_rate": 15.0,
+        "fv": 107200000
+      }
+    ]
+  },
+  "non_accrual_summary": {
+    "by_bdc": {
+      "ARCC": {
+        "count": 24,
+        "fv": 262000000,
+        "cost": 374400000,
+        "portfolio_fv": 29484800000
+      },
+      "BXSL": {
+        "count": 13,
+        "fv": 121559000,
+        "cost": 145901000,
+        "portfolio_fv": 14149560000
+      },
+      "FSK": {
+        "count": 54,
+        "fv": 943798895,
+        "cost": 1515800000,
+        "portfolio_fv": 13008600000
+      },
+      "GBDC": {
+        "count": 57,
+        "fv": 159326000,
+        "cost": 217130000,
+        "portfolio_fv": 8769389000
+      },
+      "OBDC": {
+        "count": 21,
+        "fv": 210464000,
+        "cost": 399027000,
+        "portfolio_fv": 16474285000
+      }
+    },
+    "by_sector": {
+      "Business Services": {
+        "count": 27,
+        "fv": 441943759,
+        "cost": 748734000,
+        "portfolio_fv": 10438094073
+      },
+      "Consumer": {
+        "count": 37,
+        "fv": 306951292,
+        "cost": 469677000,
+        "portfolio_fv": 9180623905
+      },
+      "Energy & Materials": {
+        "count": 7,
+        "fv": 29493000,
+        "cost": 37815000,
+        "portfolio_fv": 3449116437
+      },
+      "Financial Services": {
+        "count": 14,
+        "fv": 20521320,
+        "cost": 46033000,
+        "portfolio_fv": 14836082525
+      },
+      "Healthcare": {
+        "count": 42,
+        "fv": 439560378,
+        "cost": 681735000,
+        "portfolio_fv": 11571947359
+      },
+      "Industrials": {
+        "count": 17,
+        "fv": 180351663,
+        "cost": 267522000,
+        "portfolio_fv": 6880370917
+      },
+      "Media & Telecom": {
+        "count": 2,
+        "fv": 76888609,
+        "cost": 114969000,
+        "portfolio_fv": 2372986220
+      },
+      "Software & Technology": {
+        "count": 23,
+        "fv": 201437874,
+        "cost": 285773000,
+        "portfolio_fv": 20158291885
+      }
+    },
+    "by_bdc_sector": {
+      "ARCC": {
+        "Business Services": {
+          "count": 3,
+          "fv": 7900000
+        },
+        "Consumer": {
+          "count": 9,
+          "fv": 165200000
+        },
+        "Financial Services": {
+          "count": 3,
+          "fv": 1200000
+        },
+        "Healthcare": {
+          "count": 6,
+          "fv": 60500000
+        },
+        "Industrials": {
+          "count": 3,
+          "fv": 27200000
+        }
+      },
+      "BXSL": {
+        "Business Services": {
+          "count": 4,
+          "fv": 54041000
+        },
+        "Financial Services": {
+          "count": 2,
+          "fv": 921000
+        },
+        "Healthcare": {
+          "count": 5,
+          "fv": 56465000
+        },
+        "Industrials": {
+          "count": 2,
+          "fv": 10132000
+        }
+      },
+      "FSK": {
+        "Business Services": {
+          "count": 8,
+          "fv": 298497759
+        },
+        "Consumer": {
+          "count": 9,
+          "fv": 17964292
+        },
+        "Financial Services": {
+          "count": 7,
+          "fv": 17011320
+        },
+        "Healthcare": {
+          "count": 12,
+          "fv": 232176378
+        },
+        "Industrials": {
+          "count": 10,
+          "fv": 138321663
+        },
+        "Media & Telecom": {
+          "count": 1,
+          "fv": 67068609
+        },
+        "Software & Technology": {
+          "count": 7,
+          "fv": 172758874
+        }
+      },
+      "GBDC": {
+        "Business Services": {
+          "count": 8,
+          "fv": 32875000
+        },
+        "Consumer": {
+          "count": 13,
+          "fv": 52740000
+        },
+        "Energy & Materials": {
+          "count": 7,
+          "fv": 29493000
+        },
+        "Healthcare": {
+          "count": 11,
+          "fv": 10841000
+        },
+        "Industrials": {
+          "count": 2,
+          "fv": 4698000
+        },
+        "Software & Technology": {
+          "count": 16,
+          "fv": 28679000
+        }
+      },
+      "OBDC": {
+        "Business Services": {
+          "count": 4,
+          "fv": 48630000
+        },
+        "Consumer": {
+          "count": 6,
+          "fv": 71047000
+        },
+        "Financial Services": {
+          "count": 2,
+          "fv": 1389000
+        },
+        "Healthcare": {
+          "count": 8,
+          "fv": 79578000
+        },
+        "Media & Telecom": {
+          "count": 1,
+          "fv": 9820000
+        }
+      }
+    },
+    "positions": [
+      {
+        "ticker": "FSK",
+        "name": "Kellermeyer Bergensons Services LLC",
+        "sector": "Business Services",
+        "type": "1L",
+        "fv": 187028033,
+        "cost": 217100000,
+        "mtm_pct": 1.47
+      },
+      {
+        "ticker": "FSK",
+        "name": "Tangoe LLC",
+        "sector": "Software & Technology",
+        "type": "1L",
+        "fv": 128534018,
+        "cost": 167300000,
+        "mtm_pct": -9.5
+      },
+      {
+        "ticker": "FSK",
+        "name": "ATX Networks Corp",
+        "sector": "Industrials",
+        "type": "1L",
+        "fv": 78954185,
+        "cost": 93600000,
+        "mtm_pct": -0.64
+      },
+      {
+        "ticker": "FSK",
+        "name": "48Forty Solutions LLC",
+        "sector": "Business Services",
+        "type": "1L",
+        "fv": 73011397,
+        "cost": 179500000,
+        "mtm_pct": -52.09
+      },
+      {
+        "ticker": "FSK",
+        "name": "Lionbridge Technologies Inc",
+        "sector": "Media & Telecom",
+        "type": "1L",
+        "fv": 67068609,
+        "cost": 92700000,
+        "mtm_pct": -14.78
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Teasdale Foods, Inc. and Familia Group Holdings Inc.",
+        "sector": "Consumer",
+        "type": "1L",
+        "fv": 58800000,
+        "cost": 76700000,
+        "mtm_pct": -23.34
+      },
+      {
+        "ticker": "OBDC",
+        "name": "National Dentex Labs LLC (fka Barracuda Dental LLC)",
+        "sector": "Healthcare",
+        "type": "1L",
+        "fv": 57581000,
+        "cost": 129794000,
+        "mtm_pct": -55.64
+      },
+      {
+        "ticker": "FSK",
+        "name": "Amerivet Partners Management Inc",
+        "sector": "Healthcare",
+        "type": "1L",
+        "fv": 55692415,
+        "cost": 66800000,
+        "mtm_pct": -1.8
+      },
+      {
+        "ticker": "OBDC",
+        "name": "Feradyne Outdoors, LLC",
+        "sector": "Consumer",
+        "type": "1L",
+        "fv": 54518000,
+        "cost": 78196000,
+        "mtm_pct": -30.28
+      },
+      {
+        "ticker": "FSK",
+        "name": "Dental Care Alliance Inc",
+        "sector": "Healthcare",
+        "type": "1L",
+        "fv": 54079372,
+        "cost": 72400000,
+        "mtm_pct": -12.02
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Implus Footcare, LLC, Implus Holdings, LLC, and Implus Topco, LLC",
+        "sector": "Consumer",
+        "type": "Equity",
+        "fv": 38800000,
+        "cost": 41900000,
+        "mtm_pct": -7.4
+      },
+      {
+        "ticker": "FSK",
+        "name": "Reliant Rehab Hospital Cincinnati LLC",
+        "sector": "Healthcare",
+        "type": "1L",
+        "fv": 36760390,
+        "cost": 42800000,
+        "mtm_pct": 1.17
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Absolute Dental Group LLC and Absolute Dental Equity, LLC",
+        "sector": "Healthcare",
+        "type": "1L",
+        "fv": 34500000,
+        "cost": 44400000,
+        "mtm_pct": -22.3
+      },
+      {
+        "ticker": "FSK",
+        "name": "Kellermeyer Bergensons Services LLC",
+        "sector": "Business Services",
+        "type": "1L",
+        "fv": 34213480,
+        "cost": 94100000,
+        "mtm_pct": -57.17
+      },
+      {
+        "ticker": "BXSL",
+        "name": "Titan Investment Company, Inc.",
+        "sector": "Business Services",
+        "type": "1L",
+        "fv": 31242000,
+        "cost": 40453000,
+        "mtm_pct": -22.77
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Implus Footcare, LLC, Implus Holdings, LLC, and Implus Topco, LLC",
+        "sector": "Consumer",
+        "type": "1L",
+        "fv": 29300000,
+        "cost": 29300000,
+        "mtm_pct": 0.0
+      },
+      {
+        "ticker": "FSK",
+        "name": "KKR Central Park Leasing Aggregator L.P.",
+        "sector": "Industrials",
+        "type": "ABF",
+        "fv": 25510376,
+        "cost": 39100000,
+        "mtm_pct": -30.95
+      },
+      {
+        "ticker": "FSK",
+        "name": "Dental Care Alliance Inc",
+        "sector": "Healthcare",
+        "type": "1L",
+        "fv": 25214401,
+        "cost": 34500000,
+        "mtm_pct": -13.91
+      },
+      {
+        "ticker": "ARCC",
+        "name": "RD Holdco Inc.",
+        "sector": "Consumer",
+        "type": "Equity",
+        "fv": 24200000,
+        "cost": 17500000,
+        "mtm_pct": 38.29
+      },
+      {
+        "ticker": "FSK",
+        "name": "Gracent LLC",
+        "sector": "Healthcare",
+        "type": "1L",
+        "fv": 24110740,
+        "cost": 34200000,
+        "mtm_pct": -16.96
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Continental Acquisition Holdings, Inc. and Continental Group Holdings, L.P.",
+        "sector": "Industrials",
+        "type": "1L",
+        "fv": 23700000,
+        "cost": 37000000,
+        "mtm_pct": -35.95
+      },
+      {
+        "ticker": "FSK",
+        "name": "ATX Networks Corp",
+        "sector": "Industrials",
+        "type": "1L",
+        "fv": 23686256,
+        "cost": 27900000,
+        "mtm_pct": 0.0
+      },
+      {
+        "ticker": "FSK",
+        "name": "Cubic Corp",
+        "sector": "Software & Technology",
+        "type": "Bond",
+        "fv": 23200000,
+        "cost": 30600000,
+        "mtm_pct": -24.18
+      },
+      {
+        "ticker": "OBDC",
+        "name": "Pluralsight, LLC",
+        "sector": "Business Services",
+        "type": "1L",
+        "fv": 22723000,
+        "cost": 23110000,
+        "mtm_pct": -1.67
+      },
+      {
+        "ticker": "GBDC",
+        "name": "Ave Holdings III, Corp",
+        "sector": "Consumer",
+        "type": "Unitranche",
+        "fv": 22369000,
+        "cost": 23008000,
+        "mtm_pct": -2.78
+      },
+      {
+        "ticker": "GBDC",
+        "name": "Inhance Parent, Inc.",
+        "sector": "Energy & Materials",
+        "type": "Unitranche",
+        "fv": 22112000,
+        "cost": 21606000,
+        "mtm_pct": 2.34
+      },
+      {
+        "ticker": "BXSL",
+        "name": "Material Holdings, LLC",
+        "sector": "Business Services",
+        "type": "1L",
+        "fv": 22074000,
+        "cost": 22012000,
+        "mtm_pct": 0.28
+      },
+      {
+        "ticker": "OBDC",
+        "name": "Pluralsight, LLC",
+        "sector": "Business Services",
+        "type": "1L",
+        "fv": 21753000,
+        "cost": 25749000,
+        "mtm_pct": -15.52
+      },
+      {
+        "ticker": "BXSL",
+        "name": "WHCG Purchaser III, Inc.",
+        "sector": "Healthcare",
+        "type": "1L",
+        "fv": 21027000,
+        "cost": 21027000,
+        "mtm_pct": 0.0
+      },
+      {
+        "ticker": "BXSL",
+        "name": "DCA Investment Holdings, LLC",
+        "sector": "Healthcare",
+        "type": "1L",
+        "fv": 20358000,
+        "cost": 23976000,
+        "mtm_pct": -15.09
+      },
+      {
+        "ticker": "FSK",
+        "name": "Cubic Corp",
+        "sector": "Software & Technology",
+        "type": "Preferred",
+        "fv": 18942205,
+        "cost": 34100000,
+        "mtm_pct": -43.99
+      },
+      {
+        "ticker": "GBDC",
+        "name": "RW AM Holdco LLC",
+        "sector": "Business Services",
+        "type": "Unitranche",
+        "fv": 18182000,
+        "cost": 23047000,
+        "mtm_pct": -21.11
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Absolute Dental Group LLC and Absolute Dental Equity, LLC",
+        "sector": "Healthcare",
+        "type": "Revolver",
+        "fv": 18000000,
+        "cost": 23100000,
+        "mtm_pct": -22.08
+      },
+      {
+        "ticker": "GBDC",
+        "name": "Ave Holdings III, Corp",
+        "sector": "Consumer",
+        "type": "Preferred",
+        "fv": 15226000,
+        "cost": 20613000,
+        "mtm_pct": -26.13
+      },
+      {
+        "ticker": "OBDC",
+        "name": "Walker Edison Furniture Company LLC",
+        "sector": "Consumer",
+        "type": "1L",
+        "fv": 14648000,
+        "cost": 14188000,
+        "mtm_pct": 3.24
+      },
+      {
+        "ticker": "ARCC",
+        "name": "Implus Footcare, LLC, Implus Holdings, LLC, and Implus Topco, LLC",
+        "sector": "Consumer",
+        "type": "1L",
+        "fv": 14100000,
+        "cost": 14100000,
+        "mtm_pct": 0.0
+      },
+      {
+        "ticker": "FSK",
+        "name": "Amerivet Partners Management Inc",
+        "sector": "Healthcare",
+        "type": "Preferred",
+        "fv": 12495905,
+        "cost": 18700000,
+        "mtm_pct": -32.62
+      },
+      {
+        "ticker": "OBDC",
+        "name": "EOS Finco S.A.R.L",
+        "sector": "Media & Telecom",
+        "type": "1L",
+        "fv": 9820000,
+        "cost": 22269000,
+        "mtm_pct": -55.9
+      },
+      {
+        "ticker": "FSK",
+        "name": "Reliant Rehab Hospital Cincinnati LLC",
+        "sector": "Healthcare",
+        "type": "1L",
+        "fv": 9423564,
+        "cost": 36600000,
+        "mtm_pct": -69.67
+      },
+      {
+        "ticker": "FSK",
+        "name": "Alacrity Solutions Group LLC",
+        "sector": "Financial Services",
+        "type": "1L",
+        "fv": 9083976,
+        "cost": 10600000,
+        "mtm_pct": 0.94
+      }
+    ]
+  },
+  "aggregate": {
+    "Business Services": {
+      "total_fv": 10438094073,
+      "by_bdc": {
+        "ARCC": 2776700000,
+        "BXSL": 3179205000,
+        "FSK": 1644907073,
+        "GBDC": 956144000,
+        "OBDC": 1881138000
+      }
+    },
+    "Consumer": {
+      "total_fv": 9180623905,
+      "by_bdc": {
+        "ARCC": 4414700000,
+        "BXSL": 487616000,
+        "FSK": 852075905,
+        "GBDC": 1253539000,
+        "OBDC": 2172693000
+      }
+    },
+    "Energy & Materials": {
+      "total_fv": 3449116437,
+      "by_bdc": {
+        "ARCC": 1601000000,
+        "BXSL": 161670000,
+        "FSK": 318049437,
+        "GBDC": 278633000,
+        "OBDC": 1089764000
+      }
+    },
+    "Financial Services": {
+      "total_fv": 14836082525,
+      "by_bdc": {
+        "ARCC": 6327700000,
+        "BXSL": 1383757000,
+        "FSK": 3344299525,
+        "GBDC": 628856000,
+        "OBDC": 3151470000
+      }
+    },
+    "Healthcare": {
+      "total_fv": 11571947359,
+      "by_bdc": {
+        "ARCC": 4128400000,
+        "BXSL": 1719818000,
+        "FSK": 1864414359,
+        "GBDC": 1428459000,
+        "OBDC": 2430856000
+      }
+    },
+    "Industrials": {
+      "total_fv": 6880370917,
+      "by_bdc": {
+        "ARCC": 1732600000,
+        "BXSL": 1190234000,
+        "FSK": 1596422917,
+        "GBDC": 727663000,
+        "OBDC": 1633451000
+      }
+    },
+    "Media & Telecom": {
+      "total_fv": 2372986220,
+      "by_bdc": {
+        "ARCC": 1252200000,
+        "BXSL": 114707000,
+        "FSK": 580686220,
+        "GBDC": 19163000,
+        "OBDC": 406230000
+      }
+    },
+    "Real Estate & Transportation": {
+      "total_fv": 2999120679,
+      "by_bdc": {
+        "ARCC": 118500000,
+        "BXSL": 1154236000,
+        "FSK": 559366679,
+        "GBDC": 339349000,
+        "OBDC": 827669000
+      }
+    },
+    "Software & Technology": {
+      "total_fv": 20158291885,
+      "by_bdc": {
+        "ARCC": 7133000000,
+        "BXSL": 4758317000,
+        "FSK": 2248377885,
+        "GBDC": 3137583000,
+        "OBDC": 2881014000
+      }
+    }
+  },
+  "capital_structure": {
+    "ARCC": {
+      "total_assets": 31235000000,
+      "total_investments": 29485000000,
+      "non_investment_assets": 1750000000,
+      "total_debt": 15991000000,
+      "secured_debt": 6262000000,
+      "unsecured_debt": 9750000000,
+      "other_liabilities": 926000000,
+      "equity": 14318000000,
+      "nav_per_share": 19.94,
+      "shares_outstanding": 718000000,
+      "encumbered_fv": 29485000000,
+      "unencumbered_fv": 0,
+      "secured_instruments": [
+        {
+          "name": "Revolving Credit Facility",
+          "amount": 2028000000,
+          "type": "revolving_credit"
+        },
+        {
+          "name": "Revolving Funding Facility",
+          "amount": 1234000000,
+          "type": "revolving_credit"
+        },
+        {
+          "name": "SMBC Funding Facility",
+          "amount": 563000000,
+          "type": "revolving_credit"
+        },
+        {
+          "name": "BNP Funding Facility",
+          "amount": 717000000,
+          "type": "revolving_credit"
+        },
+        {
+          "name": "April 2036 CLO Notes",
+          "amount": 476000000,
+          "type": "clo"
+        },
+        {
+          "name": "October 2036 CLO Secured Loans",
+          "amount": 544000000,
+          "type": "clo"
+        },
+        {
+          "name": "January 2038 CLO Notes",
+          "amount": 700000000,
+          "type": "clo"
+        }
+      ],
+      "unsecured_instruments": [
+        {
+          "name": "January 2026 Notes",
+          "amount": 1150000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "July 2026 Notes",
+          "amount": 1000000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "January 2027 Notes",
+          "amount": 900000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "June 2027 Notes",
+          "amount": 500000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "June 2028 Notes",
+          "amount": 1250000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "March 2029 Notes",
+          "amount": 1000000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "July 2029 Notes",
+          "amount": 850000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "September 2030 Notes",
+          "amount": 750000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "January 2031 Notes",
+          "amount": 650000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "November 2031 Notes",
+          "amount": 700000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "March 2032 Notes",
+          "amount": 1000000000,
+          "type": "unsecured_notes"
+        }
+      ]
+    },
+    "BXSL": {
+      "total_assets": 14656463000,
+      "total_investments": 14207294000,
+      "non_investment_assets": 449169000,
+      "total_debt": 8080129000,
+      "secured_debt": 3200621000,
+      "unsecured_debt": 4900000000,
+      "other_liabilities": 331159000,
+      "equity": 6245175000,
+      "nav_per_share": 26.92,
+      "shares_outstanding": 231969058,
+      "encumbered_fv": 5613000000,
+      "unencumbered_fv": 8537000000,
+      "secured_instruments": [
+        {
+          "name": "Jackson Hole Funding Facility",
+          "amount": 22374000,
+          "type": "secured_credit_facility"
+        },
+        {
+          "name": "Breckenridge Funding Facility",
+          "amount": 652550000,
+          "type": "secured_credit_facility"
+        },
+        {
+          "name": "Big Sky Funding Facility",
+          "amount": 585900000,
+          "type": "secured_credit_facility"
+        },
+        {
+          "name": "BXSL 2025-1 Facility",
+          "amount": 34800000,
+          "type": "secured_credit_facility"
+        },
+        {
+          "name": "Revolving Credit Facility",
+          "amount": 1447497000,
+          "type": "secured_credit_facility"
+        },
+        {
+          "name": "2024-1 Notes",
+          "amount": 457500000,
+          "type": "clo"
+        }
+      ],
+      "unsecured_instruments": [
+        {
+          "name": "2026 Notes",
+          "amount": 800000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "New 2026 Notes",
+          "amount": 700000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "2027 Notes",
+          "amount": 650000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "2028 Notes",
+          "amount": 650000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "November 2027 Notes",
+          "amount": 400000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "April 2028 Notes",
+          "amount": 700000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "June 2030 Notes",
+          "amount": 500000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "January 2031 Notes",
+          "amount": 500000000,
+          "type": "unsecured_notes"
+        }
+      ]
+    },
+    "FSK": {
+      "total_assets": 13729000000,
+      "total_investments": 13009000000,
+      "non_investment_assets": 720000000,
+      "total_debt": 7634000000,
+      "secured_debt": 2870000000,
+      "unsecured_debt": 4750000000,
+      "other_liabilities": 246000000,
+      "equity": 5849000000,
+      "nav_per_share": 20.89,
+      "shares_outstanding": 280066433,
+      "encumbered_fv": 11715000000,
+      "unencumbered_fv": 1294000000,
+      "secured_instruments": [
+        {
+          "name": "Callowhill Credit Facility",
+          "amount": 284000000,
+          "type": "revolving_credit"
+        },
+        {
+          "name": "CCT Tokyo Funding Credit Facility",
+          "amount": 45000000,
+          "type": "revolving_credit"
+        },
+        {
+          "name": "Meadowbrook Run Credit Facility",
+          "amount": 265000000,
+          "type": "revolving_credit"
+        },
+        {
+          "name": "Senior Secured Revolving Credit Facility",
+          "amount": 1533000000,
+          "type": "revolving_credit"
+        },
+        {
+          "name": "CLO-2 Notes",
+          "amount": 380000000,
+          "type": "clo"
+        },
+        {
+          "name": "CLO-3 Notes",
+          "amount": 363000000,
+          "type": "clo"
+        }
+      ],
+      "unsecured_instruments": [
+        {
+          "name": "3.400% Notes due 2026",
+          "amount": 1000000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "2.625% Notes due 2027",
+          "amount": 400000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "3.250% Notes due 2027",
+          "amount": 500000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "3.125% Notes due 2028",
+          "amount": 750000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "7.875% Notes due 2029",
+          "amount": 400000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "6.875% Notes due 2029",
+          "amount": 600000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "6.125% Notes due 2030",
+          "amount": 700000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "6.125% Notes due 2031",
+          "amount": 400000000,
+          "type": "unsecured_notes"
+        }
+      ]
+    },
+    "GBDC": {
+      "total_assets": 8893965000,
+      "total_investments": 8639231000,
+      "non_investment_assets": 254734000,
+      "total_debt": 4903076000,
+      "secured_debt": 2479726000,
+      "unsecured_debt": 2423350000,
+      "other_liabilities": 81735000,
+      "equity": 3909154000,
+      "nav_per_share": 14.84,
+      "shares_outstanding": 263384785,
+      "encumbered_fv": 8519000000,
+      "unencumbered_fv": 120000000,
+      "secured_instruments": [
+        {
+          "name": "2024 Debt Securitization",
+          "amount": 1364000000,
+          "type": "clo"
+        },
+        {
+          "name": "JPM Credit Facility",
+          "amount": 1115726000,
+          "type": "revolving_credit"
+        }
+      ],
+      "unsecured_instruments": [
+        {
+          "name": "2026 Notes",
+          "amount": 599658000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "2027 Notes",
+          "amount": 349177000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "2028 Notes",
+          "amount": 719100000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "2029 Notes",
+          "amount": 755415000,
+          "type": "unsecured_notes"
+        }
+      ]
+    },
+    "OBDC": {
+      "total_assets": 17186365000,
+      "total_investments": 16470893000,
+      "non_investment_assets": 715472000,
+      "total_debt": 9300076000,
+      "secured_debt": 4365288000,
+      "unsecured_debt": 5025000000,
+      "other_liabilities": 489010000,
+      "equity": 7397279000,
+      "nav_per_share": 14.81,
+      "shares_outstanding": 499448499,
+      "encumbered_fv": 15389000000,
+      "unencumbered_fv": 1085000000,
+      "secured_instruments": [
+        {
+          "name": "Revolving Credit Facility",
+          "amount": 1012000000,
+          "type": "revolving_credit"
+        },
+        {
+          "name": "SPV Asset Facility II",
+          "amount": 161700000,
+          "type": "secured_credit_facility"
+        },
+        {
+          "name": "SPV Asset Facility V",
+          "amount": 384000000,
+          "type": "secured_credit_facility"
+        },
+        {
+          "name": "SPV Asset Facility VI",
+          "amount": 300000000,
+          "type": "secured_credit_facility"
+        },
+        {
+          "name": "SPV Asset Facility VII",
+          "amount": 210000000,
+          "type": "secured_credit_facility"
+        },
+        {
+          "name": "CLO I",
+          "amount": 390000000,
+          "type": "clo"
+        },
+        {
+          "name": "CLO III",
+          "amount": 260000000,
+          "type": "clo"
+        },
+        {
+          "name": "CLO IV",
+          "amount": 275463000,
+          "type": "clo"
+        },
+        {
+          "name": "CLO V",
+          "amount": 509625000,
+          "type": "clo"
+        },
+        {
+          "name": "CLO VII",
+          "amount": 330500000,
+          "type": "clo"
+        },
+        {
+          "name": "CLO X",
+          "amount": 272000000,
+          "type": "clo"
+        },
+        {
+          "name": "CLO XIV",
+          "amount": 260000000,
+          "type": "clo"
+        }
+      ],
+      "unsecured_instruments": [
+        {
+          "name": "2026 Notes",
+          "amount": 500000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "July 2026 Notes",
+          "amount": 1000000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "2027 Notes",
+          "amount": 500000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "April 2027 Notes",
+          "amount": 325000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "July 2027 Notes",
+          "amount": 250000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "2028 Notes",
+          "amount": 850000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "June 2028 Notes",
+          "amount": 100000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "2029 Notes",
+          "amount": 1000000000,
+          "type": "unsecured_notes"
+        },
+        {
+          "name": "2030 Notes",
+          "amount": 500000000,
+          "type": "unsecured_notes"
+        }
+      ]
+    }
+  }
+};
+
+// ======== COLORS ========
+const SECTOR_COLORS = {
+  "Software & Technology": "#4A7FB5",
+  "Healthcare": "#7CAE7A",
+  "Financial Services": "#D4A76A",
+  "Business Services": "#8B7BB5",
+  "Consumer": "#C97B84",
+  "Industrials": "#6B9DAD",
+  "Media & Telecom": "#B5A16A",
+  "Energy & Materials": "#AD7B6B",
+  "Real Estate & Transportation": "#7BA3AD",
+};
+const SENIORITY_COLORS = {
+  "1L": "#4A7FB5",
+  "Unitranche": "#5E9BD4",
+  "DDTL": "#4A7FB5",
+  "Revolver": "#4A7FB5",
+  "ABF": "#5E9BD4",
+  "2L": "#D4A76A",
+  "Bond": "#C9955A",
+  "Unsecured": "#C97B84",
+  "Preferred": "#AD5A6B",
+  "Equity": "#8B4A5A",
+  "JV": "#8B7BB5",
+  "CLO": "#6B9DAD",
+  "Unknown": "#999",
+};
+const BDC_COLORS = {
+  "ARCC": "#4A7FB5",
+  "BXSL": "#7CAE7A",
+  "FSK": "#D4A76A",
+  "GBDC": "#8B7BB5",
+  "OBDC": "#C97B84",
+};
+
+// ======== FORMAT FUNCTIONS ========
+function fmtDollar(n) {
+  if (n == null || isNaN(n)) return "--";
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (abs >= 1e9) return sign + "$" + (abs / 1e9).toFixed(1) + "B";
+  return sign + "$" + (abs / 1e6).toFixed(1) + "M";
+}
+function fmtPct(n) {
+  if (n == null || isNaN(n)) return "--";
+  return n.toFixed(1) + "%";
+}
+
+// ======== STATE ========
+let selectedBDC = "ALL";
+let selectedView = "stress";
+let maturityHorizonYears = 0;
+let _fastRAF = null;
+let _fullTimer = null;
+let pikMode = "portfolio";
+let naMode = "portfolio";
+
+// Compute total_fv from by_seniority for each portfolio (data has total_fv=0)
+for (const ticker of DATA.tickers) {
+  const p = DATA.portfolios[ticker];
+  let total = 0;
+  for (const s in p.by_seniority) {
+    total += p.by_seniority[s].fair_value;
+  }
+  p.total_fv = total;
+}
+
+// Build the full seniority list from all portfolios
+const ALL_SENIORITY_TYPES = ["1L", "Unitranche", "DDTL", "Revolver", "ABF", "2L", "Bond", "Unsecured", "Preferred", "Equity", "JV", "CLO", "Unknown"];
+
+// Gather actual seniority types present in data
+const activeSenioritySet = new Set();
+for (const ticker of DATA.tickers) {
+  for (const s in DATA.portfolios[ticker].by_seniority) {
+    activeSenioritySet.add(s);
+  }
+}
+const ACTIVE_SENIORITY = ALL_SENIORITY_TYPES.filter(s => activeSenioritySet.has(s));
+
+// Sectors from data (may be empty, use the full list as fallback for sliders)
+const SECTOR_LIST = DATA.sectors.length > 0 ? DATA.sectors : Object.keys(SECTOR_COLORS);
+
+// Slider state
+const seniorityRates = {};
+ACTIVE_SENIORITY.forEach(s => seniorityRates[s] = 0);
+const sectorRates = {};
+SECTOR_LIST.forEach(s => sectorRates[s] = 0);
+
+// ======== PRESETS ========
+const PRESETS = {
+  reset: {
+    seniority: { "1L":0, "Unitranche":0, "DDTL":0, "Revolver":0, "ABF":0, "2L":0, "Bond":0, "Unsecured":0, "Preferred":0, "Equity":0, "JV":0, "CLO":0, "Unknown":0 },
+    sectors: {}
+  },
+  mild: {
+    seniority: { "1L":2, "Unitranche":3, "DDTL":2, "Revolver":2, "ABF":3, "2L":10, "Bond":10, "Unsecured":15, "Preferred":20, "Equity":30, "JV":20, "CLO":10, "Unknown":10 },
+    sectors: {}
+  },
+  stress: {
+    seniority: { "1L":5, "Unitranche":8, "DDTL":5, "Revolver":5, "ABF":8, "2L":25, "Bond":25, "Unsecured":40, "Preferred":50, "Equity":75, "JV":50, "CLO":25, "Unknown":25 },
+    sectors: { "Consumer":15, "Energy & Materials":15, _default: 5 }
+  },
+  severe: {
+    seniority: { "1L":10, "Unitranche":15, "DDTL":10, "Revolver":10, "ABF":15, "2L":50, "Bond":50, "Unsecured":70, "Preferred":80, "Equity":100, "JV":80, "CLO":50, "Unknown":50 },
+    sectors: { "Consumer":25, "Energy & Materials":25, _default: 10 }
+  },
+  equitywipe: {
+    seniority: { "1L":0, "Unitranche":0, "DDTL":0, "Revolver":0, "ABF":0, "2L":0, "Bond":0, "Unsecured":0, "Preferred":50, "Equity":100, "JV":50, "CLO":0, "Unknown":0 },
+    sectors: {}
+  },
+  jaod: {
+    seniority: { "1L":25, "Unitranche":30, "DDTL":30, "Revolver":25, "ABF":50, "2L":100, "Bond":100, "Unsecured":100, "Preferred":100, "Equity":100, "JV":50, "CLO":100, "Unknown":100 },
+    sectors: { "Software & Technology":50, _default: 20 },
+    repricing: 1.5
+  }
+};
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.toggle('active-preset', b.dataset.preset === name));
+
+  for (const s of ACTIVE_SENIORITY) {
+    const val = p.seniority[s] != null ? p.seniority[s] : 0;
+    seniorityRates[s] = val;
+    const slider = document.getElementById('sr-' + css(s));
+    const num = document.getElementById('sn-' + css(s));
+    if (slider) slider.value = val;
+    if (num) num.value = val;
+  }
+  for (const s of SECTOR_LIST) {
+    let val = 0;
+    if (p.sectors[s] != null) val = p.sectors[s];
+    else if (p.sectors._default != null) val = p.sectors._default;
+    sectorRates[s] = val;
+    const slider = document.getElementById('secr-' + css(s));
+    const num = document.getElementById('secn-' + css(s));
+    if (slider) slider.value = val;
+    if (num) num.value = val;
+  }
+  // Repricing window
+  maturityHorizonYears = p.repricing != null ? p.repricing : 0;
+  const matInput = document.getElementById('maturityInput');
+  if (matInput) matInput.value = maturityHorizonYears;
+  recalculate();
+}
+
+function css(s) { return s.replace(/[^a-zA-Z0-9]/g, '_'); }
+
+// ======== BUILD SLIDER UI ========
+function buildSliders() {
+  const senBox = document.getElementById('senioritySliders');
+  senBox.innerHTML = '';
+  for (const s of ACTIVE_SENIORITY) {
+    const id = css(s);
+    senBox.innerHTML += `<div class="slider-row">
+      <span class="slider-label" title="${s}">${s}</span>
+      <input type="range" min="0" max="100" value="0" id="sr-${id}" data-key="${s}" data-group="seniority">
+      <input type="number" min="0" max="100" value="0" id="sn-${id}" data-key="${s}" data-group="seniority">
+      <span class="pct-suffix">%</span>
+    </div>`;
+  }
+
+  const secBox = document.getElementById('sectorSliders');
+  secBox.innerHTML = '';
+  for (const s of SECTOR_LIST) {
+    const id = css(s);
+    secBox.innerHTML += `<div class="slider-row">
+      <span class="slider-label" title="${s}">${s}</span>
+      <input type="range" min="0" max="100" value="0" id="secr-${id}" data-key="${s}" data-group="sector">
+      <input type="number" min="0" max="100" value="0" id="secn-${id}" data-key="${s}" data-group="sector">
+      <span class="pct-suffix">%</span>
+    </div>`;
+  }
+
+  // Bind events: fast updates during drag, full update on release
+
+  function syncSlider(el) {
+    const key = el.dataset.key;
+    const group = el.dataset.group;
+    const val = parseFloat(el.value) || 0;
+    const clamped = Math.min(100, Math.max(0, val));
+    if (group === 'seniority') {
+      seniorityRates[key] = clamped;
+      document.getElementById('sr-' + css(key)).value = clamped;
+      document.getElementById('sn-' + css(key)).value = clamped;
+    } else {
+      sectorRates[key] = clamped;
+      document.getElementById('secr-' + css(key)).value = clamped;
+      document.getElementById('secn-' + css(key)).value = clamped;
+    }
+  }
+
+  document.querySelectorAll('#senioritySliders input, #sectorSliders input').forEach(el => {
+    // Fast path on drag: only update summary cards
+    el.addEventListener('input', () => {
+      syncSlider(el);
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active-preset'));
+      if (_fastRAF) cancelAnimationFrame(_fastRAF);
+      _fastRAF = requestAnimationFrame(() => { _fastRAF = null; recalculateFast(); });
+      // Schedule full update after drag settles (300ms idle)
+      if (_fullTimer) clearTimeout(_fullTimer);
+      _fullTimer = setTimeout(() => { _fullTimer = null; recalculate(); }, 300);
+    });
+    // Full path on release
+    el.addEventListener('change', () => {
+      syncSlider(el);
+      if (_fullTimer) clearTimeout(_fullTimer);
+      _fullTimer = null;
+      recalculate();
+    });
+  });
+}
+
+// ======== QUICK BUTTONS ========
+function quickSeniority(action) {
+  if (action === 'zero-equity') {
+    seniorityRates['Equity'] = 0;
+    const sl = document.getElementById('sr-Equity');
+    const nm = document.getElementById('sn-Equity');
+    if (sl) sl.value = 0;
+    if (nm) nm.value = 0;
+  } else if (action === 'non1l-50') {
+    for (const s of ACTIVE_SENIORITY) {
+      if (s !== '1L' && s !== 'Unitranche' && s !== 'DDTL' && s !== 'Revolver') {
+        seniorityRates[s] = 50;
+        const sl = document.getElementById('sr-' + css(s));
+        const nm = document.getElementById('sn-' + css(s));
+        if (sl) sl.value = 50;
+        if (nm) nm.value = 50;
+      }
+    }
+  } else if (action === 'reset') {
+    for (const s of ACTIVE_SENIORITY) {
+      seniorityRates[s] = 0;
+      const sl = document.getElementById('sr-' + css(s));
+      const nm = document.getElementById('sn-' + css(s));
+      if (sl) sl.value = 0;
+      if (nm) nm.value = 0;
+    }
+  }
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active-preset'));
+  recalculate();
+}
+
+function quickSector(val) {
+  for (const s of SECTOR_LIST) {
+    sectorRates[s] = val;
+    const sl = document.getElementById('secr-' + css(s));
+    const nm = document.getElementById('secn-' + css(s));
+    if (sl) sl.value = val;
+    if (nm) nm.value = val;
+  }
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active-preset'));
+  recalculate();
+}
+
+// ======== CALCULATE STRESS ========
+function getPortfoliosToCalc() {
+  if (selectedBDC === 'ALL') return DATA.tickers;
+  return [selectedBDC];
+}
+
+function calcCompanyLoss(company) {
+  let loss = 0;
+  const sectorRate = (company.sector && sectorRates[company.sector]) ? sectorRates[company.sector] / 100 : 0;
+  for (const type in company.by_type) {
+    const fv = company.by_type[type] || 0;
+    const senRate = (seniorityRates[type] || 0) / 100;
+    const combined = 1 - (1 - senRate) * (1 - sectorRate);
+    loss += fv * combined;
+  }
+  return loss;
+}
+
+// Shared computed state — reused by both fast and full update paths
+let _computed = null;
+
+function computeStress() {
+  const tickers = getPortfoliosToCalc();
+  let totalFV = 0;
+  let totalLoss = 0;
+  const lossBySeniority = {};
+  const fvBySeniority = {};
+  const lossBySector = {};
+  const fvBySector = {};
+  const lossByBDC = {};
+  const fvByBDC = {};
+
+  for (const ticker of tickers) {
+    const p = DATA.portfolios[ticker];
+    let bdcFV = p.total_fv;
+    let bdcLoss = 0;
+
+    const cutoffYear = maturityHorizonYears > 0 ? (new Date().getFullYear() + maturityHorizonYears) : 0;
+
+    for (const sector in p.sector_x_seniority) {
+      const secRate = (sectorRates[sector] || 0) / 100;
+      for (const senType in p.sector_x_seniority[sector]) {
+        const cellFV = p.sector_x_seniority[sector][senType] || 0;
+        const senRate = (seniorityRates[senType] || 0) / 100;
+        const combined = 1 - (1 - senRate) * (1 - secRate);
+
+        // Apply maturity protection: only loans maturing AFTER cutoff get losses
+        let exposedFV = cellFV;
+        if (cutoffYear > 0 && p.maturity_buckets && p.maturity_buckets[sector] && p.maturity_buckets[sector][senType]) {
+          const buckets = p.maturity_buckets[sector][senType];
+          let protectedFV = 0;
+          for (const yr in buckets) {
+            if (yr !== 'none' && parseInt(yr) <= cutoffYear) {
+              protectedFV += buckets[yr];
+            }
+          }
+          exposedFV = cellFV - protectedFV;
+          if (exposedFV < 0) exposedFV = 0;
+        }
+        const fv = cellFV; // still count full FV for portfolio totals
+        const loss = exposedFV * combined;
+        lossBySeniority[senType] = (lossBySeniority[senType] || 0) + loss;
+        fvBySeniority[senType] = (fvBySeniority[senType] || 0) + fv;
+        lossBySector[sector] = (lossBySector[sector] || 0) + loss;
+        fvBySector[sector] = (fvBySector[sector] || 0) + fv;
+        bdcLoss += loss;
+      }
+    }
+
+    totalFV += bdcFV;
+    totalLoss += bdcLoss;
+    lossByBDC[ticker] = bdcLoss;
+    fvByBDC[ticker] = bdcFV;
+  }
+
+  _computed = { tickers, totalFV, totalLoss, lossBySeniority, fvBySeniority, lossBySector, fvBySector, lossByBDC, fvByBDC };
+  return _computed;
+}
+
+// Fast path: only update summary cards (runs on every slider input frame)
+function recalculateFast() {
+  const c = computeStress();
+  const postFV = c.totalFV - c.totalLoss;
+  const lossPct = c.totalFV > 0 ? (c.totalLoss / c.totalFV) * 100 : 0;
+
+  document.getElementById('cardFV').textContent = fmtDollar(c.totalFV);
+  document.getElementById('cardLoss').textContent = fmtDollar(c.totalLoss);
+  document.getElementById('cardLossPct').textContent = fmtPct(lossPct);
+  document.getElementById('cardPostFV').textContent = fmtDollar(postFV);
+}
+
+// Full path: update everything including charts, heatmap, table
+function recalculate() {
+  const c = computeStress();
+  const postFV = c.totalFV - c.totalLoss;
+  const lossPct = c.totalFV > 0 ? (c.totalLoss / c.totalFV) * 100 : 0;
+
+  document.getElementById('cardFV').textContent = fmtDollar(c.totalFV);
+  document.getElementById('cardLoss').textContent = fmtDollar(c.totalLoss);
+  document.getElementById('cardLossPct').textContent = fmtPct(lossPct);
+  document.getElementById('cardPostFV').textContent = fmtDollar(postFV);
+
+  // Compute top companies (only needed for full update)
+  const allCompanies = [];
+  for (const ticker of c.tickers) {
+    for (const co of DATA.portfolios[ticker].top_companies) {
+      const loss = calcCompanyLoss(co);
+      allCompanies.push({
+        name: co.name, ticker, sector: co.sector,
+        by_type: co.by_type, total_fv: co.total_fv,
+        loss, lossPct: co.total_fv > 0 ? (loss / co.total_fv) * 100 : 0
+      });
+    }
+  }
+
+  updateSeniorityChart(c.lossBySeniority, c.fvBySeniority);
+  updateSectorChart(c.lossBySector, c.fvBySector);
+  updateBDCChart(c.fvByBDC, c.lossByBDC);
+  updateNetImpactCharts();
+  updateWaterfall(c.lossByBDC);
+  updateTopCompanies(allCompanies);
+}
+
+// ======== CHARTS ========
+let seniorityChart = null;
+let sectorChart = null;
+let bdcChart = null;
+let seniorityUnit = '%';  // '$' or '%'
+let sectorUnit = '%';     // '$' or '%'
+let bdcUnit = '%';        // '$' or '%'
+
+// Cache last computed data for chart redraws on unit toggle
+let _lastLossBySeniority = {};
+let _lastFvBySeniority = {};
+let _lastLossBySector = {};
+let _lastFvBySector = {};
+let _lastFvByBDC = {};
+let _lastLossByBDC = {};
+
+function updateSeniorityChart(lossBySeniority, fvBySeniority) {
+  _lastLossBySeniority = lossBySeniority;
+  _lastFvBySeniority = fvBySeniority;
+  const canvas = document.getElementById('chartSeniority');
+  const types = ACTIVE_SENIORITY.filter(s => fvBySeniority[s] > 0);
+  const colors = types.map(s => SENIORITY_COLORS[s] || '#999');
+  const isPct = seniorityUnit === '%';
+
+  const fvData = isPct
+    ? types.map(s => 100)
+    : types.map(s => (fvBySeniority[s] || 0) / 1e6);
+  const lossData = isPct
+    ? types.map(s => { const fv = fvBySeniority[s] || 1; return ((lossBySeniority[s] || 0) / fv) * 100; })
+    : types.map(s => (lossBySeniority[s] || 0) / 1e6);
+
+  const config = {
+    type: 'bar',
+    data: {
+      labels: types,
+      datasets: isPct ? [
+        {
+          label: 'Loss % of Tier FV',
+          data: lossData,
+          backgroundColor: colors.map(c => c + 'cc'),
+          borderColor: colors,
+          borderWidth: 1
+        }
+      ] : [
+        {
+          label: 'Fair Value ($M)',
+          data: fvData,
+          backgroundColor: colors.map(c => c + '44'),
+          borderColor: colors,
+          borderWidth: 1
+        },
+        {
+          label: 'Est. Loss ($M)',
+          data: lossData,
+          backgroundColor: colors.map(c => c + 'cc'),
+          borderColor: colors,
+          borderWidth: 1
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { position: 'top', labels: { color: '#555', font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => isPct
+              ? ctx.dataset.label + ': ' + ctx.parsed.x.toFixed(1) + '%'
+              : ctx.dataset.label + ': $' + ctx.parsed.x.toFixed(0) + 'M'
+          }
+        }
+      },
+      scales: {
+        x: {
+          max: isPct ? 100 : undefined,
+          ticks: { color: '#666', callback: v => isPct ? v + '%' : '$' + v.toLocaleString() + 'M' },
+          grid: { color: '#eee' }
+        },
+        y: { ticks: { color: '#555', font: { size: 11 } }, grid: { display: false } }
+      }
+    }
+  };
+
+  if (seniorityChart) {
+    seniorityChart.data = config.data;
+    seniorityChart.options = config.options;
+    seniorityChart.update('none');
+  } else {
+    seniorityChart = new Chart(canvas, config);
+  }
+}
+
+function updateSectorChart(lossBySector, fvBySector) {
+  _lastLossBySector = lossBySector;
+  _lastFvBySector = fvBySector;
+  const canvas = document.getElementById('chartSector');
+  const secs = DATA.sectors.filter(s => fvBySector[s] > 0);
+  const colors = secs.map(s => SECTOR_COLORS[s] || '#999');
+  const shortLabels = secs.map(s => s.length > 16 ? s.substring(0, 14) + '...' : s);
+  const isPct = sectorUnit === '%';
+
+  const fvData = isPct
+    ? secs.map(s => 100)
+    : secs.map(s => (fvBySector[s] || 0) / 1e6);
+  const lossData = isPct
+    ? secs.map(s => { const fv = fvBySector[s] || 1; return ((lossBySector[s] || 0) / fv) * 100; })
+    : secs.map(s => (lossBySector[s] || 0) / 1e6);
+
+  const config = {
+    type: 'bar',
+    data: {
+      labels: shortLabels,
+      datasets: isPct ? [
+        {
+          label: 'Loss % of Sector FV',
+          data: lossData,
+          backgroundColor: colors.map(c => c + 'cc'),
+          borderColor: colors,
+          borderWidth: 1
+        }
+      ] : [
+        {
+          label: 'Fair Value ($M)',
+          data: fvData,
+          backgroundColor: colors.map(c => c + '44'),
+          borderColor: colors,
+          borderWidth: 1
+        },
+        {
+          label: 'Est. Loss ($M)',
+          data: lossData,
+          backgroundColor: colors.map(c => c + 'cc'),
+          borderColor: colors,
+          borderWidth: 1
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { position: 'top', labels: { color: '#555', font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            title: items => secs[items[0].dataIndex],
+            label: ctx => isPct
+              ? ctx.dataset.label + ': ' + ctx.parsed.x.toFixed(1) + '%'
+              : ctx.dataset.label + ': $' + ctx.parsed.x.toFixed(0) + 'M'
+          }
+        }
+      },
+      scales: {
+        x: {
+          max: isPct ? 100 : undefined,
+          ticks: { color: '#666', callback: v => isPct ? v + '%' : '$' + v.toLocaleString() + 'M' },
+          grid: { color: '#eee' }
+        },
+        y: { ticks: { color: '#555', font: { size: 10 } }, grid: { display: false } }
+      }
+    }
+  };
+
+  if (sectorChart) {
+    sectorChart.data = config.data;
+    sectorChart.options = config.options;
+    sectorChart.update('none');
+  } else {
+    sectorChart = new Chart(canvas, config);
+  }
+}
+
+function updateBDCChart(fvByBDC, lossByBDC) {
+  _lastFvByBDC = fvByBDC;
+  _lastLossByBDC = lossByBDC;
+  const canvas = document.getElementById('chartBDC');
+  const tickers = selectedBDC === 'ALL' ? DATA.tickers : [selectedBDC];
+  const colors = tickers.map(t => BDC_COLORS[t] || '#999');
+  const isPct = bdcUnit === '%';
+
+  let datasets, xTickFmt, tooltipFmt, xMax;
+  if (isPct) {
+    const postData = tickers.map(t => {
+      const fv = fvByBDC[t] || 1;
+      return ((fv - (lossByBDC[t] || 0)) / fv) * 100;
+    });
+    datasets = [
+      {
+        label: 'Post-Stress % of Original FV',
+        data: postData,
+        backgroundColor: colors.map(c => c + 'cc'),
+        borderColor: colors,
+        borderWidth: 1
+      }
+    ];
+    xMax = 100;
+    xTickFmt = v => v + '%';
+    tooltipFmt = ctx => {
+      const t = tickers[ctx.dataIndex];
+      const fv = fvByBDC[t] || 0;
+      const loss = lossByBDC[t] || 0;
+      return 'Post-Stress: ' + fmtDollar(fv - loss) + ' (' + ctx.parsed.x.toFixed(1) + '%)';
+    };
+  } else {
+    const origData = tickers.map(t => (fvByBDC[t] || 0) / 1e6);
+    const postData = tickers.map(t => ((fvByBDC[t] || 0) - (lossByBDC[t] || 0)) / 1e6);
+    datasets = [
+      {
+        label: 'Original FV ($M)',
+        data: origData,
+        backgroundColor: colors.map(c => c + '66'),
+        borderColor: colors,
+        borderWidth: 1
+      },
+      {
+        label: 'Post-Stress FV ($M)',
+        data: postData,
+        backgroundColor: colors.map(c => c + 'cc'),
+        borderColor: colors,
+        borderWidth: 1
+      }
+    ];
+    xMax = undefined;
+    xTickFmt = v => '$' + v.toLocaleString() + 'M';
+    tooltipFmt = ctx => ctx.dataset.label + ': $' + ctx.parsed.x.toFixed(0) + 'M';
+  }
+
+  const config = {
+    type: 'bar',
+    data: {
+      labels: tickers,
+      datasets: datasets
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { position: 'top', labels: { color: '#555', font: { size: 11 } } },
+        tooltip: { callbacks: { label: tooltipFmt } }
+      },
+      scales: {
+        x: {
+          max: xMax,
+          ticks: { color: '#666', callback: xTickFmt },
+          grid: { color: '#eee' }
+        },
+        y: { ticks: { color: '#555', font: { size: 12 } }, grid: { display: false } }
+      }
+    }
+  };
+
+  if (bdcChart) {
+    bdcChart.data = config.data;
+    bdcChart.options = config.options;
+    bdcChart.update('none');
+  } else {
+    bdcChart = new Chart(canvas, config);
+  }
+}
+
+// ======== HEATMAP TABLE ========
+function updateHeatmap(fvBySeniority) {
+  const container = document.getElementById('heatmapContainer');
+  const tickers = getPortfoliosToCalc();
+
+  const activeCols = ACTIVE_SENIORITY.filter(s => fvBySeniority[s] > 0);
+  const activeSectors = DATA.sectors.filter(sec => {
+    for (const t of tickers) {
+      if (DATA.portfolios[t].sector_x_seniority[sec]) return true;
+    }
+    return false;
+  });
+
+  if (activeCols.length === 0 || activeSectors.length === 0) {
+    container.innerHTML = '<div class="empty-state">No data available</div>';
+    return;
+  }
+
+  // Sector × Seniority heatmap: rows = sectors, cols = seniority types
+  let html = '<table class="heatmap-table"><thead><tr><th>Sector</th>';
+  for (const s of activeCols) {
+    const rate = seniorityRates[s] || 0;
+    html += `<th>${s}<br><span style="font-weight:400;color:#888;font-size:10px">${rate}%</span></th>`;
+  }
+  html += '<th>Total</th></tr></thead><tbody>';
+
+  let grandTotal = 0;
+  const colTotals = {};
+
+  for (const sector of activeSectors) {
+    const secRate = (sectorRates[sector] || 0) / 100;
+    const shortName = sector.length > 18 ? sector.substring(0, 16) + '...' : sector;
+    html += `<tr><td class="row-label" title="${sector}">${shortName}<br><span style="font-weight:400;color:#888;font-size:10px">${sectorRates[sector] || 0}%</span></td>`;
+    let rowTotal = 0;
+    for (const sen of activeCols) {
+      let cellFV = 0;
+      for (const t of tickers) {
+        const sxs = DATA.portfolios[t].sector_x_seniority[sector];
+        if (sxs && sxs[sen]) cellFV += sxs[sen];
+      }
+      const senRate = (seniorityRates[sen] || 0) / 100;
+      const combined = 1 - (1 - senRate) * (1 - secRate);
+      const loss = cellFV * combined;
+      rowTotal += loss;
+      colTotals[sen] = (colTotals[sen] || 0) + loss;
+      const bg = heatColor(combined);
+      html += `<td style="background:${bg}" title="${sector} × ${sen}: ${(combined*100).toFixed(1)}% combined loss">${cellFV > 0 ? fmtDollar(loss) : '--'}</td>`;
+    }
+    grandTotal += rowTotal;
+    let sectorFV = 0;
+    for (const t of tickers) {
+      const bs = DATA.portfolios[t].by_sector[sector];
+      if (bs) sectorFV += bs.fair_value;
+    }
+    const rowPct = sectorFV > 0 ? rowTotal / sectorFV : 0;
+    html += `<td style="background:${heatColor(rowPct)};font-weight:600">${fmtDollar(rowTotal)}</td></tr>`;
+  }
+
+  // Total row
+  html += '<tr style="font-weight:600"><td class="row-label">Total</td>';
+  for (const sen of activeCols) {
+    const loss = colTotals[sen] || 0;
+    const fv = fvBySeniority[sen] || 1;
+    html += `<td style="background:${heatColor(loss / fv)}">${fmtDollar(loss)}</td>`;
+  }
+  let totalPortFV = 0;
+  for (const t of tickers) totalPortFV += DATA.portfolios[t].total_fv;
+  const grandPct = totalPortFV > 0 ? grandTotal / totalPortFV : 0;
+  html += `<td style="background:${heatColor(grandPct)};font-weight:700">${fmtDollar(grandTotal)}</td></tr>`;
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function heatColor(intensity) {
+  if (intensity <= 0) return '#fff';
+  if (intensity <= 0.5) {
+    const t = intensity / 0.5;
+    const r = 255;
+    const g = Math.round(255 - t * 90);
+    const b = Math.round(255 - t * 200);
+    return `rgb(${r},${g},${b})`;
+  }
+  const t = (intensity - 0.5) / 0.5;
+  const r = Math.round(255 - t * 60);
+  const g = Math.round(165 - t * 120);
+  const b = Math.round(55 - t * 55);
+  return `rgb(${r},${g},${b})`;
+}
+
+// ======== CAPITAL STRUCTURE WATERFALL ========
+// ======== EXPAND TOGGLE ========
+function toggleExpand(id) {
+  const panel = document.getElementById(id);
+  panel.classList.toggle('open');
+  const body = panel.querySelector('.expand-body');
+  body.style.display = panel.classList.contains('open') ? '' : 'none';
+  // Render charts on first open
+  if (panel.classList.contains('open') && id === 'netImpactPanel') {
+    updateNetImpactCharts();
+  }
+}
+
+// ======== NET IMPACT CHARTS ========
+let netSeniorityChart = null;
+let netSectorChart = null;
+
+function updateNetImpactCharts() {
+  const panel = document.getElementById('netImpactPanel');
+  if (!panel.classList.contains('open')) return;
+
+  const tickers = getPortfoliosToCalc();
+
+  // Compute effective combined loss rate per seniority type (weighted across sectors)
+  const senTypes = ACTIVE_SENIORITY;
+  const senCombinedPct = [];
+  const senFV = [];
+  for (const sen of senTypes) {
+    let totalFV = 0, totalLoss = 0;
+    const senRate = (seniorityRates[sen] || 0) / 100;
+    for (const t of tickers) {
+      const sxs = DATA.portfolios[t].sector_x_seniority;
+      for (const sec in sxs) {
+        const fv = sxs[sec][sen] || 0;
+        const secRate = (sectorRates[sec] || 0) / 100;
+        const combined = 1 - (1 - senRate) * (1 - secRate);
+        totalFV += fv;
+        totalLoss += fv * combined;
+      }
+    }
+    senFV.push(totalFV);
+    senCombinedPct.push(totalFV > 0 ? (totalLoss / totalFV) * 100 : 0);
+  }
+
+  // Compute effective combined loss rate per sector (weighted across seniority)
+  const sectors = DATA.sectors;
+  const secCombinedPct = [];
+  const secFV = [];
+  for (const sec of sectors) {
+    let totalFV = 0, totalLoss = 0;
+    const secRate = (sectorRates[sec] || 0) / 100;
+    for (const t of tickers) {
+      const sxs = DATA.portfolios[t].sector_x_seniority[sec];
+      if (!sxs) continue;
+      for (const sen in sxs) {
+        const fv = sxs[sen] || 0;
+        const senRate = (seniorityRates[sen] || 0) / 100;
+        const combined = 1 - (1 - senRate) * (1 - secRate);
+        totalFV += fv;
+        totalLoss += fv * combined;
+      }
+    }
+    secFV.push(totalFV);
+    secCombinedPct.push(totalFV > 0 ? (totalLoss / totalFV) * 100 : 0);
+  }
+
+  // Seniority chart
+  const activeSen = senTypes.filter((s, i) => senFV[i] > 0);
+  const activeSenPct = activeSen.map(s => senCombinedPct[senTypes.indexOf(s)]);
+  const senColors = activeSen.map(s => SENIORITY_COLORS[s] || '#999');
+  const senInputRates = activeSen.map(s => seniorityRates[s] || 0);
+
+  const senConfig = {
+    type: 'bar',
+    data: {
+      labels: activeSen,
+      datasets: [
+        {
+          label: 'Combined Loss Rate',
+          data: activeSenPct,
+          backgroundColor: senColors.map(c => c + 'cc'),
+          borderColor: senColors,
+          borderWidth: 1
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { position: 'top', labels: { color: '#555', font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.x.toFixed(1) + '%' } }
+      },
+      scales: {
+        x: { max: 100, ticks: { color: '#666', callback: v => v + '%' }, grid: { color: '#eee' } },
+        y: { ticks: { color: '#555', font: { size: 11 } }, grid: { display: false } }
+      }
+    }
+  };
+
+  if (netSeniorityChart) { netSeniorityChart.destroy(); netSeniorityChart = null; }
+  netSeniorityChart = new Chart(document.getElementById('chartNetSeniority'), senConfig);
+
+  // Sector chart
+  const activeSec = sectors.filter((s, i) => secFV[i] > 0);
+  const activeSecPct = activeSec.map(s => secCombinedPct[sectors.indexOf(s)]);
+  const secColors = activeSec.map(s => SECTOR_COLORS[s] || '#999');
+  const secInputRates = activeSec.map(s => sectorRates[s] || 0);
+  const shortLabels = activeSec.map(s => s.length > 16 ? s.substring(0, 14) + '...' : s);
+
+  const secConfig = {
+    type: 'bar',
+    data: {
+      labels: shortLabels,
+      datasets: [
+        {
+          label: 'Combined Loss Rate',
+          data: activeSecPct,
+          backgroundColor: secColors.map(c => c + 'cc'),
+          borderColor: secColors,
+          borderWidth: 1
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { position: 'top', labels: { color: '#555', font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            title: items => activeSec[items[0].dataIndex],
+            label: ctx => ctx.dataset.label + ': ' + ctx.parsed.x.toFixed(1) + '%'
+          }
+        }
+      },
+      scales: {
+        x: { max: 100, ticks: { color: '#666', callback: v => v + '%' }, grid: { color: '#eee' } },
+        y: { ticks: { color: '#555', font: { size: 10 } }, grid: { display: false } }
+      }
+    }
+  };
+
+  if (netSectorChart) { netSectorChart.destroy(); netSectorChart = null; }
+  netSectorChart = new Chart(document.getElementById('chartNetSector'), secConfig);
+}
+
+function updateWaterfall(lossByBDC) {
+  const container = document.getElementById('waterfallTable');
+  if (!container) return;
+  const tickers = DATA.tickers;
+  const cs = DATA.capital_structure;
+  if (!cs) { container.innerHTML = '<p style="color:#888;font-size:12px">No capital structure data available.</p>'; return; }
+
+  function fmtW(n) {
+    if (n == null || isNaN(n)) return '--';
+    const abs = Math.abs(n);
+    const sign = n < 0 ? '-' : '';
+    if (abs >= 1e9) return sign + '$' + (abs / 1e9).toFixed(1) + 'B';
+    return sign + '$' + (abs / 1e6).toFixed(0) + 'M';
+  }
+
+  const th = 'padding:8px 10px;border:1px solid #ddd;text-align:right;font-weight:600;color:#666';
+  const thL = th.replace('right', 'left');
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html += '<thead><tr style="background:#f0f0ec">';
+  html += `<th style="${thL}">BDC</th>`;
+  html += `<th style="${th}">Pre-Stress Assets</th>`;
+  html += `<th style="${th}">Post-Stress Assets</th>`;
+  html += `<th style="${th}">Unencumbered Assets</th>`;
+  html += `<th style="${th}">Secured Debt (Recovery)</th>`;
+  html += `<th style="${th}">Unsecured Recovery</th>`;
+  html += `<th style="${th}">Equity Residual</th>`;
+  html += `<th style="${th}">Post-Stress NAV/Share</th>`;
+  html += '</tr></thead><tbody>';
+
+  const td = 'padding:8px 10px;border:1px solid #ddd;text-align:right;color:#333';
+
+  for (const ticker of tickers) {
+    const cap = cs[ticker];
+    if (!cap) continue;
+    const portfolioLoss = lossByBDC[ticker] || 0;
+    const postStressAssets = cap.total_assets - portfolioLoss;
+
+    // Split losses proportionally between encumbered and unencumbered pools
+    const totalInvFV = cap.total_investments || (cap.encumbered_fv + cap.unencumbered_fv);
+    const lossPct = totalInvFV > 0 ? portfolioLoss / totalInvFV : 0;
+    const encOrig = cap.encumbered_fv || totalInvFV;
+    const unencOrig = cap.unencumbered_fv || 0;
+    const unencOrigPct = totalInvFV > 0 ? (unencOrig / totalInvFV) * 100 : 0;
+    const encumberedPost = Math.max(0, encOrig * (1 - lossPct));
+    const unencumberedPost = Math.max(0, unencOrig * (1 - lossPct));
+
+    // Waterfall with encumbered/unencumbered split:
+    // 1. Secured lenders have first claim on encumbered (ringfenced) assets
+    // 2. If encumbered pool > secured debt: excess flows to general pool
+    // 3. If encumbered pool < secured debt: shortfall becomes pari passu
+    //    unsecured claim against the general (unencumbered) pool
+    // 4. Unencumbered assets + any excess from encumbered → available for unsecured
+    // 5. Other liabilities (mgmt fees etc) deducted from total pool
+    const otherLiab = cap.other_liabilities;
+
+    // Step 1: What do secured lenders recover from their ringfenced pool?
+    const securedRecoveryFromEnc = Math.min(cap.secured_debt, Math.max(0, encumberedPost));
+    const securedShortfall = Math.max(0, cap.secured_debt - encumberedPost);
+    const excessFromEnc = Math.max(0, encumberedPost - cap.secured_debt);
+
+    // Step 2: General pool = unencumbered assets + excess from encumbered - other liabilities
+    const generalPool = Math.max(0, unencumberedPost + cap.non_investment_assets + excessFromEnc - otherLiab);
+
+    // Step 3: Secured shortfall is pari passu with unsecured in the general pool
+    const totalClaimsOnGeneral = securedShortfall + cap.unsecured_debt;
+    let securedFromGeneral = 0;
+    let unsecuredFromGeneral = 0;
+    if (totalClaimsOnGeneral > 0 && generalPool > 0) {
+      if (generalPool >= totalClaimsOnGeneral) {
+        securedFromGeneral = securedShortfall;
+        unsecuredFromGeneral = cap.unsecured_debt;
+      } else {
+        // Pro-rata: pari passu split
+        const ratio = generalPool / totalClaimsOnGeneral;
+        securedFromGeneral = securedShortfall * ratio;
+        unsecuredFromGeneral = cap.unsecured_debt * ratio;
+      }
+    }
+
+    const securedRecovery = securedRecoveryFromEnc + securedFromGeneral;
+    const securedPct = cap.secured_debt > 0 ? (securedRecovery / cap.secured_debt) * 100 : 100;
+    const unsecuredRecovery = unsecuredFromGeneral;
+    const unsecuredCents = cap.unsecured_debt > 0 ? (unsecuredRecovery / cap.unsecured_debt) * 100 : 100;
+    const equityResidual = Math.max(0, generalPool - securedFromGeneral - unsecuredFromGeneral);
+    const navPost = cap.shares_outstanding > 0 ? equityResidual / cap.shares_outstanding : 0;
+    const navOrig = cap.nav_per_share;
+
+    // Colors
+    let unsecuredColor = '#27ae60';
+    if (unsecuredCents < 50) unsecuredColor = '#c0392b';
+    else if (unsecuredCents < 100) unsecuredColor = '#e67e22';
+    let securedColor = '#27ae60';
+    if (securedPct < 100) securedColor = '#e67e22';
+    if (securedPct < 50) securedColor = '#c0392b';
+    const navChange = navPost - navOrig;
+    const navChangeStr = navChange >= 0 ? '' : ' (' + navChange.toFixed(2) + ')';
+
+    html += '<tr>';
+    html += `<td style="${td};text-align:left;font-weight:600">${ticker}</td>`;
+    html += `<td style="${td}">${fmtW(cap.total_assets)}</td>`;
+    html += `<td style="${td}">${fmtW(postStressAssets)}</td>`;
+    html += `<td style="${td}">${fmtW(unencumberedPost)}<span style="font-size:10px;color:#888"> (${unencOrigPct.toFixed(0)}% orig)</span></td>`;
+    html += `<td style="${td};color:${securedColor}">${fmtW(cap.secured_debt)} (${securedPct.toFixed(0)}%)</td>`;
+    html += `<td style="${td}"><span style="font-size:16px;font-weight:700;color:${unsecuredColor}">${unsecuredCents.toFixed(0)}&cent;</span></td>`;
+    html += `<td style="${td}">${fmtW(equityResidual)}</td>`;
+    html += `<td style="${td}">$${navPost.toFixed(2)}<span style="font-size:10px;color:#888"> vs $${navOrig.toFixed(2)}${navChangeStr}</span></td>`;
+    html += '</tr>';
+  }
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+// ======== TOP COMPANIES TABLE ========
+function updateTopCompanies(allCompanies) {
+  const container = document.getElementById('topCompaniesContainer');
+  const sorted = allCompanies.filter(c => c.loss > 0).sort((a, b) => b.loss - a.loss).slice(0, 20);
+
+  if (sorted.length === 0) {
+    container.innerHTML = '<div class="empty-state">No losses at current settings</div>';
+    return;
+  }
+
+  const showBDC = selectedBDC === 'ALL';
+  let html = '<table class="data-table"><thead><tr>';
+  html += '<th>#</th><th>Company</th>';
+  if (showBDC) html += '<th>BDC</th>';
+  html += '<th>Sector</th><th>Types</th><th class="right">FV</th><th class="right">Est. Loss</th><th class="right">Loss %</th>';
+  html += '</tr></thead><tbody>';
+
+  sorted.forEach((c, i) => {
+    const types = Object.keys(c.by_type).filter(t => c.by_type[t] > 0);
+    const badges = types.map(t => `<span class="badge" style="background:${SENIORITY_COLORS[t] || '#999'}">${t}</span>`).join('');
+    html += '<tr>';
+    html += `<td>${i + 1}</td>`;
+    html += `<td>${c.name}</td>`;
+    if (showBDC) html += `<td><span class="badge" style="background:${BDC_COLORS[c.ticker] || '#999'}">${c.ticker}</span></td>`;
+    html += `<td>${c.sector || '--'}</td>`;
+    html += `<td>${badges}</td>`;
+    html += `<td class="right">${fmtDollar(c.total_fv)}</td>`;
+    html += `<td class="right" style="color:#c0392b;font-weight:600">${fmtDollar(c.loss)}</td>`;
+    html += `<td class="right" style="color:#c0392b">${fmtPct(c.lossPct)}</td>`;
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+// ======== PIK & NON-ACCRUAL TAB ========
+let pikChart = null;
+let naChart = null;
+
+function renderPIKTab() {
+  const pik = DATA.pik_summary;
+  const tickers = getPortfoliosToCalc();
+  const cardsDiv = document.getElementById('pikCards');
+
+  let totalFV = 0, totalPikFV = 0, totalCount = 0, weightedPikSum = 0;
+  for (const t of tickers) {
+    const b = pik.by_bdc[t];
+    if (!b) continue;
+    totalPikFV += b.fv;
+    totalCount += b.count;
+    totalFV += b.portfolio_fv;
+    weightedPikSum += b.wt_avg_pik * b.fv;
+  }
+  const wtAvgPik = totalPikFV > 0 ? weightedPikSum / totalPikFV : 0;
+  const pikPct = totalFV > 0 ? (totalPikFV / totalFV) * 100 : 0;
+
+  cardsDiv.innerHTML = `
+    <div class="card"><div class="card-label">PIK Exposure</div><div class="card-value">${fmtDollar(totalPikFV)}</div></div>
+    <div class="card"><div class="card-label">PIK % of Portfolio</div><div class="card-value">${fmtPct(pikPct)}</div></div>
+    <div class="card"><div class="card-label">Wt Avg PIK Rate</div><div class="card-value">${fmtPct(wtAvgPik)}</div></div>
+    <div class="card"><div class="card-label">Position Count</div><div class="card-value">${totalCount.toLocaleString()}</div></div>
+  `;
+
+  updatePIKChart();
+
+  const tableDiv = document.getElementById('pikTableContainer');
+  const positions = pik.top_positions.filter(p => selectedBDC === 'ALL' || p.ticker === selectedBDC);
+  if (positions.length === 0) {
+    tableDiv.innerHTML = '<div class="empty-state">No PIK positions</div>';
+    return;
+  }
+  let html = '<table class="data-table"><thead><tr>';
+  html += '<th>Company</th><th>BDC</th><th>Sector</th><th>Type</th><th class="right">PIK Rate</th><th class="right">FV</th>';
+  html += '</tr></thead><tbody>';
+  for (const p of positions) {
+    html += '<tr>';
+    html += `<td>${p.name}</td>`;
+    html += `<td><span class="badge" style="background:${BDC_COLORS[p.ticker] || '#999'}">${p.ticker}</span></td>`;
+    html += `<td>${p.sector || '--'}</td>`;
+    html += `<td><span class="badge" style="background:${SENIORITY_COLORS[p.type] || '#999'}">${p.type}</span></td>`;
+    html += `<td class="right">${fmtPct(p.pik_rate)}</td>`;
+    html += `<td class="right">${fmtDollar(p.fv)}</td>`;
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  tableDiv.innerHTML = html;
+}
+
+function updatePIKChart() {
+  const canvas = document.getElementById('chartPIK');
+  if (!canvas) return;
+  const pik = DATA.pik_summary;
+  const tickers = getPortfoliosToCalc();
+
+  if (pikChart) { pikChart.destroy(); pikChart = null; }
+
+  let labels, pctData, dollarLabels, colors;
+
+  if (pikMode === 'portfolio') {
+    labels = tickers.filter(t => pik.by_bdc[t]);
+    pctData = labels.map(t => {
+      const b = pik.by_bdc[t];
+      return b && b.portfolio_fv > 0 ? (b.fv / b.portfolio_fv) * 100 : 0;
+    });
+    dollarLabels = labels.map(t => fmtDollar(pik.by_bdc[t] ? pik.by_bdc[t].fv : 0));
+    colors = labels.map(t => BDC_COLORS[t] || '#999');
+  } else {
+    const secs = DATA.sectors.filter(s => pik.by_sector[s]);
+    labels = secs.map(s => s.length > 16 ? s.substring(0, 14) + '...' : s);
+    pctData = secs.map(s => {
+      const b = pik.by_sector[s];
+      return b && b.portfolio_fv > 0 ? (b.fv / b.portfolio_fv) * 100 : 0;
+    });
+    dollarLabels = secs.map(s => fmtDollar(pik.by_sector[s] ? pik.by_sector[s].fv : 0));
+    colors = secs.map(s => SECTOR_COLORS[s] || '#999');
+  }
+
+  if (labels.length === 0) return;
+
+  pikChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'PIK % of FV',
+        data: pctData,
+        backgroundColor: colors.map(c => c + 'cc'),
+        borderColor: colors,
+        borderWidth: 1
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => fmtPct(ctx.parsed.x) + ' (' + dollarLabels[ctx.dataIndex] + ')'
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#666', callback: v => v + '%' }, grid: { color: '#eee' } },
+        y: { ticks: { color: '#555' }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderNATab() {
+  const na = DATA.non_accrual_summary;
+  const cardsDiv = document.getElementById('naCards');
+  const tickers = getPortfoliosToCalc();
+
+  let totalNAFV = 0, totalNACost = 0, totalCount = 0, totalPortFV = 0;
+  for (const t of tickers) {
+    const b = na.by_bdc[t];
+    if (!b) continue;
+    totalNAFV += b.fv;
+    totalNACost += b.cost;
+    totalCount += b.count;
+    totalPortFV += b.portfolio_fv;
+  }
+  const naPct = totalPortFV > 0 ? (totalNAFV / totalPortFV) * 100 : 0;
+  const avgMTM = totalNACost > 0 ? ((totalNAFV - totalNACost) / totalNACost) * 100 : 0;
+
+  const anyData = Object.keys(na.by_bdc).length > 0 || na.positions.length > 0;
+
+  cardsDiv.innerHTML = `
+    <div class="card"><div class="card-label">Non-Accrual FV</div><div class="card-value">${anyData ? fmtDollar(totalNAFV) : '$0.0M'}</div></div>
+    <div class="card"><div class="card-label">NA % of Portfolio</div><div class="card-value">${anyData ? fmtPct(naPct) : '0.0%'}</div></div>
+    <div class="card"><div class="card-label">Avg MTM</div><div class="card-value">${anyData ? fmtPct(avgMTM) : '--'}</div></div>
+    <div class="card"><div class="card-label">Position Count</div><div class="card-value">${totalCount}</div></div>
+  `;
+
+  // Chart
+  const canvas = document.getElementById('chartNA');
+  if (!canvas) return;
+  if (naChart) { naChart.destroy(); naChart = null; }
+  if (!anyData) return;
+
+  let labels, pctData, dollarLabels, colors;
+
+  if (naMode === 'portfolio') {
+    labels = tickers.filter(t => na.by_bdc[t]);
+    pctData = labels.map(t => {
+      const b = na.by_bdc[t];
+      return b && b.portfolio_fv > 0 ? (b.fv / b.portfolio_fv) * 100 : 0;
+    });
+    dollarLabels = labels.map(t => fmtDollar(na.by_bdc[t] ? na.by_bdc[t].fv : 0));
+    colors = labels.map(t => BDC_COLORS[t] || '#999');
+  } else {
+    const secs = DATA.sectors.filter(s => na.by_sector[s]);
+    labels = secs.map(s => s.length > 16 ? s.substring(0, 14) + '...' : s);
+    pctData = secs.map(s => {
+      const b = na.by_sector[s];
+      return b && b.portfolio_fv > 0 ? (b.fv / b.portfolio_fv) * 100 : 0;
+    });
+    dollarLabels = secs.map(s => fmtDollar(na.by_sector[s] ? na.by_sector[s].fv : 0));
+    colors = secs.map(s => SECTOR_COLORS[s] || '#999');
+  }
+
+  if (labels.length === 0) return;
+
+  naChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Non-Accrual % of FV',
+        data: pctData,
+        backgroundColor: colors.map(c => c + 'cc'),
+        borderColor: colors,
+        borderWidth: 1
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => fmtPct(ctx.parsed.x) + ' (' + dollarLabels[ctx.dataIndex] + ')'
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#666', callback: v => v.toFixed(1) + '%' }, grid: { color: '#eee' } },
+        y: { ticks: { color: '#555' }, grid: { display: false } }
+      }
+    }
+  });
+
+  // Table
+  const tableDiv = document.getElementById('naTableContainer');
+  const positions = na.positions.filter(p => selectedBDC === 'ALL' || p.ticker === selectedBDC);
+  if (positions.length === 0) {
+    tableDiv.innerHTML = '<div class="empty-state">No non-accrual positions in current data</div>';
+    return;
+  }
+  let html = '<table class="data-table"><thead><tr>';
+  html += '<th>Company</th><th>BDC</th><th>Sector</th><th>Type</th><th class="right">FV</th><th class="right">Cost</th><th class="right">MTM %</th>';
+  html += '</tr></thead><tbody>';
+  for (const p of positions) {
+    const mtmClass = p.mtm_pct < 0 ? 'mtm-neg' : 'mtm-pos';
+    html += '<tr>';
+    html += `<td>${p.name}</td>`;
+    html += `<td><span class="badge" style="background:${BDC_COLORS[p.ticker] || '#999'}">${p.ticker}</span></td>`;
+    html += `<td>${p.sector || '--'}</td>`;
+    html += `<td><span class="badge" style="background:${SENIORITY_COLORS[p.type] || '#999'}">${p.type}</span></td>`;
+    html += `<td class="right">${fmtDollar(p.fv)}</td>`;
+    html += `<td class="right">${fmtDollar(p.cost)}</td>`;
+    html += `<td class="right ${mtmClass}">${fmtPct(p.mtm_pct)}</td>`;
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  tableDiv.innerHTML = html;
+}
+
+// ======== TAB SWITCHING ========
+document.getElementById('bdcTabs').addEventListener('click', e => {
+  if (!e.target.dataset.bdc) return;
+  selectedBDC = e.target.dataset.bdc;
+  document.querySelectorAll('#bdcTabs button').forEach(b => b.classList.toggle('active', b.dataset.bdc === selectedBDC));
+  refreshAll();
+});
+
+document.getElementById('viewTabs').addEventListener('click', e => {
+  if (!e.target.dataset.view) return;
+  selectedView = e.target.dataset.view;
+  document.querySelectorAll('#viewTabs button').forEach(b => b.classList.toggle('active', b.dataset.view === selectedView));
+  document.getElementById('panel-stress').classList.toggle('active', selectedView === 'stress');
+  document.getElementById('panel-pik').classList.toggle('active', selectedView === 'pik');
+  if (selectedView === 'pik') {
+    renderPIKTab();
+    renderNATab();
+  }
+});
+
+document.getElementById('presetRow').addEventListener('click', e => {
+  if (!e.target.dataset.preset) return;
+  applyPreset(e.target.dataset.preset);
+});
+
+document.getElementById('toggleSeniority').addEventListener('click', e => {
+  if (!e.target.dataset.unit) return;
+  seniorityUnit = e.target.dataset.unit;
+  document.querySelectorAll('#toggleSeniority .utog').forEach(b => b.classList.toggle('active', b.dataset.unit === seniorityUnit));
+  if (seniorityChart) { seniorityChart.destroy(); seniorityChart = null; }
+  updateSeniorityChart(_lastLossBySeniority, _lastFvBySeniority);
+});
+
+document.getElementById('toggleSector').addEventListener('click', e => {
+  if (!e.target.dataset.unit) return;
+  sectorUnit = e.target.dataset.unit;
+  document.querySelectorAll('#toggleSector .utog').forEach(b => b.classList.toggle('active', b.dataset.unit === sectorUnit));
+  if (sectorChart) { sectorChart.destroy(); sectorChart = null; }
+  updateSectorChart(_lastLossBySector, _lastFvBySector);
+});
+
+document.getElementById('toggleBDC').addEventListener('click', e => {
+  if (!e.target.dataset.unit) return;
+  bdcUnit = e.target.dataset.unit;
+  document.querySelectorAll('#toggleBDC .utog').forEach(b => b.classList.toggle('active', b.dataset.unit === bdcUnit));
+  if (bdcChart) { bdcChart.destroy(); bdcChart = null; }
+  updateBDCChart(_lastFvByBDC, _lastLossByBDC);
+});
+
+document.getElementById('pikToggle').addEventListener('click', e => {
+  if (!e.target.dataset.mode) return;
+  pikMode = e.target.dataset.mode;
+  document.querySelectorAll('#pikToggle .toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === pikMode));
+  updatePIKChart();
+});
+
+document.getElementById('naToggle').addEventListener('click', e => {
+  if (!e.target.dataset.mode) return;
+  naMode = e.target.dataset.mode;
+  document.querySelectorAll('#naToggle .toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === naMode));
+  renderNATab();
+});
+
+document.getElementById('maturityInput').addEventListener('input', e => {
+  maturityHorizonYears = parseFloat(e.target.value) || 0;
+  if (_fullTimer) clearTimeout(_fullTimer);
+  _fullTimer = setTimeout(() => { _fullTimer = null; recalculate(); }, 400);
+});
+
+document.getElementById('maturityInput').addEventListener('change', () => {
+  maturityHorizonYears = parseFloat(document.getElementById('maturityInput').value) || 0;
+  if (_fullTimer) clearTimeout(_fullTimer);
+  _fullTimer = null;
+  recalculate();
+});
+
+document.getElementById('maturityInfoBtn').addEventListener('click', () => {
+  const popup = document.getElementById('maturityInfo');
+  popup.style.display = popup.style.display === 'none' ? 'block' : 'none';
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#maturityInfoBtn') && !e.target.closest('#maturityInfo')) {
+    document.getElementById('maturityInfo').style.display = 'none';
+  }
+});
+
+function refreshAll() {
+  if (selectedView === 'stress') {
+    // Destroy and recreate charts when switching BDCs so labels update
+    if (seniorityChart) { seniorityChart.destroy(); seniorityChart = null; }
+    if (sectorChart) { sectorChart.destroy(); sectorChart = null; }
+    if (bdcChart) { bdcChart.destroy(); bdcChart = null; }
+    recalculate();
+  } else {
+    renderPIKTab();
+    renderNATab();
+  }
+}
+
+// ======== INIT ========
+Chart.defaults.animation = false;
+Chart.defaults.responsive = true;
+Chart.defaults.maintainAspectRatio = false;
+buildSliders();
+applyPreset('reset');
+</script>
+</body>
+</html>
