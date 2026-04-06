@@ -618,9 +618,24 @@
     </div>
 
     <div class="stacks-section" style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:24px">
-      <h3 style="font-size:14px;font-weight:600;margin-bottom:4px">Portfolio & Capital Structure Comparison</h3>
-      <p style="font-size:11px;color:#888;margin-bottom:16px">All values shown as % of total enterprise value (total assets). Hover for dollar amounts.</p>
-      <div id="stacksContainer"></div>
+      <div class="chart-header">
+        <div>
+          <h3 style="margin-bottom:2px">Portfolio & Capital Structure Comparison</h3>
+          <p style="font-size:11px;color:#888;margin:0">All values shown as % of total. Click any bar for detailed breakdown.</p>
+        </div>
+        <div class="unit-toggle" id="toggleCashOther">
+          <button class="utog active" data-mode="include">Incl. Cash</button>
+          <button class="utog" data-mode="exclude">Excl. Cash</button>
+        </div>
+      </div>
+      <div id="stacksContainer" style="margin-top:12px"></div>
+      <div id="stacksPopup" style="display:none;position:fixed;z-index:300;background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-width:360px;font-size:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong id="popupTitle" style="color:#333"></strong>
+          <span onclick="document.getElementById('stacksPopup').style.display='none'" style="cursor:pointer;color:#888;font-size:16px">&times;</span>
+        </div>
+        <div id="popupBody"></div>
+      </div>
     </div>
   </div>
 
@@ -7279,6 +7294,10 @@ function updateWaterfall(lossByBDC) {
 }
 
 // ======== STACKED BAR VISUALIZATION ========
+let stacksIncludeCash = true;
+let _stackBarId = 0;
+const _stackBarData = {}; // store segment data keyed by bar ID for popup
+
 function updateStacks() {
   const container = document.getElementById('stacksContainer');
   if (!container) return;
@@ -7286,6 +7305,7 @@ function updateStacks() {
   const cs = DATA.capital_structure;
   const c = _computed;
   if (!c || !cs) return;
+  _stackBarId = 0;
 
   function fmtS(n) {
     if (n == null || isNaN(n)) return '--';
@@ -7294,54 +7314,54 @@ function updateStacks() {
     return '$' + (abs / 1e6).toFixed(0) + 'M';
   }
 
-  function buildBar(segments, total) {
-    // segments: [{label, value, color}]
-    let html = '<div class="stacked-bar">';
+  function buildBar(segments, title) {
+    // Use sum of segments as denominator so % always adds to 100
+    const total = segments.reduce((s, seg) => s + seg.value, 0);
+    const barId = _stackBarId++;
+    _stackBarData[barId] = {title, segments, total};
+    let html = `<div class="stacked-bar" data-barid="${barId}" style="cursor:pointer">`;
     for (const seg of segments) {
       const pct = total > 0 ? (seg.value / total) * 100 : 0;
       if (pct < 0.3) continue;
       const label = pct > 5 ? `<span>${seg.label} ${pct.toFixed(0)}%</span>` : '';
-      html += `<div class="bar-seg" style="height:${pct}%;background:${seg.color}" title="${seg.label}: ${fmtS(seg.value)} (${pct.toFixed(1)}% of EV)">${label}</div>`;
+      html += `<div class="bar-seg" style="height:${pct}%;background:${seg.color}" title="${seg.label}: ${fmtS(seg.value)} (${pct.toFixed(1)}%)">${label}</div>`;
     }
     html += '</div>';
     html += `<div class="bar-total">${fmtS(total)}</div>`;
     return html;
   }
 
-  // Seniority order and colors
+  function addCash(segs, t) {
+    if (!stacksIncludeCash) return;
+    const cap = cs[t];
+    if (cap && cap.non_investment_assets > 0) {
+      segs.push({label: 'Cash & Other', value: cap.non_investment_assets, color: '#b0b0a8'});
+    }
+  }
+
   const senOrder = ['1L', 'Unitranche', 'Revolver', 'DDTL', 'ABF', '2L', 'Bond', 'Unsecured', 'Preferred', 'Equity', 'JV', 'CLO', 'Unknown'];
 
   let html = '<div class="stacks-grid">';
-
-  // Header row
   html += '<div class="row-label"></div>';
   for (const t of tickers) html += `<div class="bdc-col bdc-header">${t}</div>`;
 
-  // ── Row 1: Assets by Seniority (Pre-Stress) ──
+  // ── Assets by Seniority ──
   html += '<div class="section-divider">Assets by Seniority</div>';
   html += '<div class="row-label">Pre-Stress</div>';
   for (const t of tickers) {
     const p = DATA.portfolios[t];
-    const cap = cs[t];
-    const ev = cap ? cap.total_assets : p.total_fv;
     const segs = [];
     for (const s of senOrder) {
       const fv = p.by_seniority[s] ? p.by_seniority[s].fair_value : 0;
       if (fv > 0) segs.push({label: s, value: fv, color: SENIORITY_COLORS[s] || '#999'});
     }
-    // Add cash & other non-investment assets
-    if (cap && cap.non_investment_assets > 0) {
-      segs.push({label: 'Cash & Other', value: cap.non_investment_assets, color: '#b0b0a8'});
-    }
-    html += '<div class="bdc-col">' + buildBar(segs, ev) + '</div>';
+    addCash(segs, t);
+    html += '<div class="bdc-col">' + buildBar(segs, t + ' Pre-Stress by Seniority') + '</div>';
   }
 
-  // ── Row 2: Assets by Seniority (Post-Stress) ──
   html += '<div class="row-label">Post-Stress</div>';
   for (const t of tickers) {
     const p = DATA.portfolios[t];
-    const cap = cs[t];
-    const ev = cap ? cap.total_assets : p.total_fv;
     const loss = c.lossByBDC[t] || 0;
     const totalFV = p.total_fv;
     const lossPct = totalFV > 0 ? loss / totalFV : 0;
@@ -7351,70 +7371,54 @@ function updateStacks() {
       const postFV = origFV * (1 - lossPct);
       if (postFV > 0) segs.push({label: s, value: postFV, color: SENIORITY_COLORS[s] || '#999'});
     }
-    if (cap && cap.non_investment_assets > 0) {
-      segs.push({label: 'Cash & Other', value: cap.non_investment_assets, color: '#b0b0a8'});
-    }
-    html += '<div class="bdc-col">' + buildBar(segs, ev) + '</div>';
+    addCash(segs, t);
+    html += '<div class="bdc-col">' + buildBar(segs, t + ' Post-Stress by Seniority') + '</div>';
   }
 
-  // ── Row 3: Assets by Sector (Pre-Stress) ──
+  // ── Assets by Sector ──
   html += '<div class="section-divider">Assets by Sector</div>';
   html += '<div class="row-label">Pre-Stress</div>';
   for (const t of tickers) {
     const p = DATA.portfolios[t];
-    const cap = cs[t];
-    const ev = cap ? cap.total_assets : p.total_fv;
     const segs = [];
     for (const s of DATA.sectors) {
       const fv = p.by_sector[s] ? p.by_sector[s].fair_value : 0;
       if (fv > 0) segs.push({label: s.replace(' & ', '/'), value: fv, color: SECTOR_COLORS[s] || '#999'});
     }
-    if (cap && cap.non_investment_assets > 0) {
-      segs.push({label: 'Cash & Other', value: cap.non_investment_assets, color: '#b0b0a8'});
-    }
-    html += '<div class="bdc-col">' + buildBar(segs, ev) + '</div>';
+    addCash(segs, t);
+    html += '<div class="bdc-col">' + buildBar(segs, t + ' Pre-Stress by Sector') + '</div>';
   }
 
-  // ── Row 4: Assets by Sector (Post-Stress) ──
   html += '<div class="row-label">Post-Stress</div>';
   for (const t of tickers) {
     const p = DATA.portfolios[t];
-    const cap = cs[t];
-    const ev = cap ? cap.total_assets : p.total_fv;
-    const totalFV = p.total_fv;
     const segs = [];
     for (const sec of DATA.sectors) {
       const origFV = p.by_sector[sec] ? p.by_sector[sec].fair_value : 0;
       if (origFV <= 0) continue;
-      // Apply sector+seniority combined loss for this sector
       let secLoss = 0;
       const secRate = (sectorRates[sec] || 0) / 100;
       const sxs = p.sector_x_seniority[sec];
       if (sxs) {
         for (const sen in sxs) {
           const senRate = (seniorityRates[sen] || 0) / 100;
-          const combined = 1 - (1 - senRate) * (1 - secRate);
-          secLoss += (sxs[sen] || 0) * combined;
+          secLoss += (sxs[sen] || 0) * (1 - (1 - senRate) * (1 - secRate));
         }
       }
       const postFV = origFV - secLoss;
       if (postFV > 0) segs.push({label: sec.replace(' & ', '/'), value: postFV, color: SECTOR_COLORS[sec] || '#999'});
     }
-    if (cap && cap.non_investment_assets > 0) {
-      segs.push({label: 'Cash & Other', value: cap.non_investment_assets, color: '#b0b0a8'});
-    }
-    html += '<div class="bdc-col">' + buildBar(segs, ev) + '</div>';
+    addCash(segs, t);
+    html += '<div class="bdc-col">' + buildBar(segs, t + ' Post-Stress by Sector') + '</div>';
   }
 
-  // ── Row 5: Capital Stack (Liabilities + Equity) ──
+  // ── Capital Stack ──
   html += '<div class="section-divider">Capital Stack (Liabilities & Equity)</div>';
   html += '<div class="row-label">Current</div>';
   for (const t of tickers) {
     const cap = cs[t];
     if (!cap) { html += '<div class="bdc-col">--</div>'; continue; }
-    const ev = cap.total_assets;
     const segs = [];
-    // Break secured into CLOs vs credit facilities
     let cloAmt = 0, creditAmt = 0;
     for (const inst of cap.secured_instruments || []) {
       if (inst.type === 'clo') cloAmt += inst.amount;
@@ -7425,11 +7429,37 @@ function updateStacks() {
     if (cap.unsecured_debt > 0) segs.push({label: 'Sr Unsecured', value: cap.unsecured_debt, color: '#D4A76A'});
     if (cap.other_liabilities > 0) segs.push({label: 'Other Liab', value: cap.other_liabilities, color: '#999'});
     if (cap.equity > 0) segs.push({label: 'Equity/NAV', value: cap.equity, color: '#7CAE7A'});
-    html += '<div class="bdc-col">' + buildBar(segs, ev) + '</div>';
+    html += '<div class="bdc-col">' + buildBar(segs, t + ' Capital Stack') + '</div>';
   }
 
-  html += '</div>'; // close stacks-grid
+  html += '</div>';
   container.innerHTML = html;
+
+  // Attach click handlers for popup
+  container.querySelectorAll('.stacked-bar').forEach(bar => {
+    bar.addEventListener('click', e => {
+      const barId = bar.dataset.barid;
+      const data = _stackBarData[barId];
+      if (!data) return;
+      const popup = document.getElementById('stacksPopup');
+      const titleEl = document.getElementById('popupTitle');
+      const bodyEl = document.getElementById('popupBody');
+      titleEl.textContent = data.title;
+      let tbl = '<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:4px 8px;border-bottom:1px solid #ddd;color:#666">Segment</th><th style="text-align:right;padding:4px 8px;border-bottom:1px solid #ddd;color:#666">$</th><th style="text-align:right;padding:4px 8px;border-bottom:1px solid #ddd;color:#666">%</th></tr></thead><tbody>';
+      for (const seg of data.segments) {
+        const pct = data.total > 0 ? (seg.value / data.total * 100) : 0;
+        tbl += `<tr><td style="padding:3px 8px;border-bottom:1px solid #eee"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${seg.color};margin-right:6px;vertical-align:middle"></span>${seg.label}</td><td style="text-align:right;padding:3px 8px;border-bottom:1px solid #eee">${fmtDollar(seg.value)}</td><td style="text-align:right;padding:3px 8px;border-bottom:1px solid #eee">${pct.toFixed(1)}%</td></tr>`;
+      }
+      tbl += `<tr style="font-weight:600"><td style="padding:4px 8px">Total</td><td style="text-align:right;padding:4px 8px">${fmtDollar(data.total)}</td><td style="text-align:right;padding:4px 8px">100.0%</td></tr>`;
+      tbl += '</tbody></table>';
+      bodyEl.innerHTML = tbl;
+      popup.style.display = 'block';
+      // Position near click
+      const rect = bar.getBoundingClientRect();
+      popup.style.left = Math.min(rect.right + 8, window.innerWidth - 380) + 'px';
+      popup.style.top = Math.max(8, rect.top - 40 + window.scrollY) + 'px';
+    });
+  });
 }
 
 // ======== PIK & NON-ACCRUAL TAB ========
@@ -7713,6 +7743,21 @@ document.getElementById('toggleBDC').addEventListener('click', e => {
   document.querySelectorAll('#toggleBDC .utog').forEach(b => b.classList.toggle('active', b.dataset.unit === bdcUnit));
   if (bdcChart) { bdcChart.destroy(); bdcChart = null; }
   updateBDCChart(_lastFvByBDC, _lastLossByBDC);
+});
+
+document.getElementById('toggleCashOther').addEventListener('click', e => {
+  if (!e.target.dataset.mode) return;
+  stacksIncludeCash = e.target.dataset.mode === 'include';
+  document.querySelectorAll('#toggleCashOther .utog').forEach(b => b.classList.toggle('active', b.dataset.mode === (stacksIncludeCash ? 'include' : 'exclude')));
+  updateStacks();
+});
+
+// Dismiss popup on click outside
+document.addEventListener('click', e => {
+  const popup = document.getElementById('stacksPopup');
+  if (popup && popup.style.display !== 'none' && !e.target.closest('#stacksPopup') && !e.target.closest('.stacked-bar')) {
+    popup.style.display = 'none';
+  }
 });
 
 document.getElementById('pikToggle').addEventListener('click', e => {
