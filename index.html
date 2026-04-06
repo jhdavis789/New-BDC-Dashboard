@@ -512,6 +512,7 @@
   <div class="tab-group" id="viewTabs">
     <button class="active" data-view="stress">Stress Model</button>
     <button data-view="pik">PIK & Non-Accrual</button>
+    <button data-view="liquidity">Liquidity</button>
   </div>
 </div>
 
@@ -654,6 +655,58 @@
       <div id="naTableContainer"></div>
     </div>
   </div>
+
+  <!-- LIQUIDITY TAB -->
+  <div class="view-panel" id="panel-liquidity">
+    <div class="controls-panel" style="grid-template-columns:1fr">
+      <div class="control-box">
+        <h3>Liquidity Assumptions</h3>
+        <p style="font-size:11px;color:#888;margin:-4px 0 8px">These layer on top of the portfolio stress assumptions from the Stress Model tab.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div>
+            <div class="slider-row"><span class="slider-label">Unfunded Draw Rate</span><input type="range" min="0" max="100" value="15" id="liq-draw-r"><input type="number" min="0" max="100" value="15" id="liq-draw-n"><span class="pct-suffix">%</span></div>
+          </div>
+          <div>
+            <div class="slider-row"><span class="slider-label">Revolver Risk</span><input type="range" min="0" max="100" value="0" id="liq-revolver-r"><input type="number" min="0" max="100" value="0" id="liq-revolver-n"><span class="pct-suffix">%</span></div>
+          </div>
+          <div>
+            <div class="slider-row"><span class="slider-label">Forced Sale Disc.</span><input type="range" min="0" max="50" value="0" id="liq-sale-r"><input type="number" min="0" max="50" value="0" id="liq-sale-n"><span class="pct-suffix">%</span></div>
+          </div>
+        </div>
+        <div class="quick-buttons" style="margin-top:10px">
+          <button class="quick-btn" onclick="applyLiqPreset('base')">Base</button>
+          <button class="quick-btn" onclick="applyLiqPreset('moderate')">Moderate Stress</button>
+          <button class="quick-btn" onclick="applyLiqPreset('severe')">Severe Stress</button>
+          <button class="quick-btn" onclick="applyLiqPreset('crisis')">Liquidity Crisis</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-row" id="liqCards"></div>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>Debt Maturity Wall</h3>
+        <div class="chart-wrap" style="height:300px"><canvas id="chartMaturityWall"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>Asset Coverage Ratio (Post-Stress)</h3>
+        <p style="font-size:10px;color:#888;margin:-8px 0 8px">Red line = 150% regulatory minimum. Amber = 200% typical covenant.</p>
+        <div class="chart-wrap" style="height:300px"><canvas id="chartCoverage"></canvas></div>
+      </div>
+    </div>
+
+    <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:24px">
+      <h3 style="font-size:14px;font-weight:600;margin-bottom:4px">Net Liquidity Position</h3>
+      <p style="font-size:11px;color:#888;margin-bottom:12px"><em>Cash + undrawn revolver capacity (adjusted for renewal risk and borrowing base shrinkage) − stressed unfunded draws − near-term debt maturities (2yr).</em></p>
+      <div id="liqWaterfallTable"></div>
+    </div>
+
+    <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:24px">
+      <h3 style="font-size:14px;font-weight:600;margin-bottom:4px">Unfunded Commitment Stress</h3>
+      <div id="liqUnfundedTable"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -679,8 +732,8 @@ const DATA = {
   "seniority_types": [
     "1L",
     "Unitranche",
-    "JV",
     "Equity",
+    "JV",
     "Preferred",
     "2L",
     "Unsecured",
@@ -750,14 +803,14 @@ const DATA = {
           "fair_value": 3020400000,
           "par": 1117000000
         },
+        "Equity": {
+          "count": 313,
+          "fair_value": 2631700000,
+          "par": 0
+        },
         "Preferred": {
           "count": 89,
           "fair_value": 2372000000,
-          "par": 0
-        },
-        "Equity": {
-          "count": 240,
-          "fair_value": 2125000000,
           "par": 0
         },
         "Unsecured": {
@@ -774,89 +827,75 @@ const DATA = {
           "count": 160,
           "fair_value": 934500000,
           "par": 957300000
-        },
-        "Unknown": {
-          "count": 73,
-          "fair_value": 506700000,
-          "par": 0
         }
       },
       "sector_x_seniority": {
         "Business Services": {
-          "Unknown": 79700000,
           "1L": 2339200000,
           "2L": 181500000,
-          "Equity": 94000000,
+          "Equity": 173700000,
           "Preferred": 2200000,
           "Revolver": 49500000,
           "Unsecured": 30600000
         },
         "Consumer": {
-          "Unknown": 117100000,
           "1L": 3220600000,
           "2L": 97000000,
-          "Equity": 447600000,
+          "Equity": 564700000,
           "Preferred": 169400000,
           "Revolver": 153300000,
           "Unsecured": 209700000
         },
         "Energy & Materials": {
-          "Unknown": 29500000,
           "1L": 876700000,
-          "Equity": 279500000,
+          "Equity": 309000000,
           "Preferred": 5100000,
           "Revolver": 12800000,
           "Unsecured": 397400000
         },
         "Financial Services": {
-          "Unknown": 58500000,
           "1L": 1531000000,
           "2L": 123500000,
-          "Equity": 275000000,
+          "Equity": 333500000,
           "JV": 3020400000,
           "Preferred": 364500000,
           "Revolver": 562100000,
           "Unsecured": 392700000
         },
         "Healthcare": {
-          "Unknown": 93700000,
           "1L": 2608900000,
           "2L": 389000000,
-          "Equity": 118500000,
+          "Equity": 212200000,
           "Preferred": 764300000,
           "Revolver": 61500000,
           "Unsecured": 92500000
         },
         "Industrials": {
-          "Unknown": 26000000,
           "1L": 1394300000,
           "2L": 54100000,
-          "Equity": 168700000,
+          "Equity": 194700000,
           "Preferred": 8700000,
           "Revolver": 24800000,
           "Unsecured": 56000000
         },
         "Media & Telecom": {
-          "Unknown": 8200000,
           "1L": 517400000,
           "2L": 41100000,
-          "Equity": 359300000,
+          "Equity": 367500000,
           "Preferred": 219600000,
           "Revolver": 13200000,
           "Unsecured": 93400000
         },
         "Real Estate & Transportation": {
-          "Unknown": 25300000,
           "1L": 11000000,
-          "Equity": 8600000,
+          "Equity": 33900000,
           "Preferred": 73400000,
           "Unsecured": 200000
         },
         "Software & Technology": {
-          "Unknown": 68700000,
           "1L": 4994500000,
           "2L": 601200000,
-          "Equity": 373800000,
+          "Equity": 442500000,
           "Preferred": 764800000,
           "Revolver": 57300000,
           "Unsecured": 272700000
@@ -938,8 +977,8 @@ const DATA = {
           "sector": "Healthcare",
           "total_fv": 316800000,
           "by_type": {
-            "Unknown": 15500000,
             "1L": 100000,
+            "Equity": 15500000,
             "Preferred": 301200000
           }
         },
@@ -970,8 +1009,8 @@ const DATA = {
           "sector": "Healthcare",
           "total_fv": 253300000,
           "by_type": {
-            "Unknown": 2500000,
-            "1L": 250800000
+            "1L": 250800000,
+            "Equity": 2500000
           }
         },
         {
@@ -1101,9 +1140,6 @@ const DATA = {
       ],
       "maturity_buckets": {
         "Business Services": {
-          "Unknown": {
-            "none": 79700000
-          },
           "1L": {
             "2026": 106900000,
             "2027": 95700000,
@@ -1120,7 +1156,7 @@ const DATA = {
           "Equity": {
             "2028": 0,
             "2036": 0,
-            "none": 94000000
+            "none": 173700000
           },
           "Preferred": {
             "none": 2200000
@@ -1140,9 +1176,6 @@ const DATA = {
           }
         },
         "Consumer": {
-          "Unknown": {
-            "none": 117100000
-          },
           "1L": {
             "2026": 67100000,
             "2027": 240000000,
@@ -1163,7 +1196,7 @@ const DATA = {
             "2035": 8100000,
             "2050": 0,
             "2054": 0,
-            "none": 435600000
+            "none": 552700000
           },
           "Preferred": {
             "2032": 0,
@@ -1186,9 +1219,6 @@ const DATA = {
           }
         },
         "Energy & Materials": {
-          "Unknown": {
-            "none": 29500000
-          },
           "1L": {
             "2026": 57000000,
             "2027": 31400000,
@@ -1201,7 +1231,7 @@ const DATA = {
           },
           "Equity": {
             "2027": 0,
-            "none": 279500000
+            "none": 309000000
           },
           "Preferred": {
             "2028": 0,
@@ -1220,9 +1250,6 @@ const DATA = {
           }
         },
         "Financial Services": {
-          "Unknown": {
-            "none": 58500000
-          },
           "1L": {
             "2027": 9200000,
             "2028": 283000000,
@@ -1241,7 +1268,7 @@ const DATA = {
           "Equity": {
             "2026": 2500000,
             "2028": 0,
-            "none": 272500000
+            "none": 331000000
           },
           "JV": {
             "2036": 1117000000,
@@ -1271,9 +1298,6 @@ const DATA = {
           }
         },
         "Healthcare": {
-          "Unknown": {
-            "none": 93700000
-          },
           "1L": {
             "2026": 50200000,
             "2027": 241500000,
@@ -1293,7 +1317,7 @@ const DATA = {
             "2029": 300000,
             "2031": 43500000,
             "2034": 0,
-            "none": 73100000
+            "none": 166800000
           },
           "Preferred": {
             "2028": 53800000,
@@ -1317,9 +1341,6 @@ const DATA = {
           }
         },
         "Industrials": {
-          "Unknown": {
-            "none": 26000000
-          },
           "1L": {
             "2026": 3900000,
             "2027": 93900000,
@@ -1334,7 +1355,7 @@ const DATA = {
           },
           "Equity": {
             "2027": 0,
-            "none": 168700000
+            "none": 194700000
           },
           "Preferred": {
             "none": 8700000
@@ -1352,10 +1373,6 @@ const DATA = {
           }
         },
         "Media & Telecom": {
-          "Unknown": {
-            "2031": 2300000,
-            "none": 5900000
-          },
           "1L": {
             "2026": 25500000,
             "2028": 18800000,
@@ -1373,8 +1390,9 @@ const DATA = {
             "2028": 0,
             "2029": 0,
             "2030": 0,
+            "2031": 2300000,
             "2035": 0,
-            "none": 359300000
+            "none": 365200000
           },
           "Preferred": {
             "none": 219600000
@@ -1392,15 +1410,12 @@ const DATA = {
           }
         },
         "Real Estate & Transportation": {
-          "Unknown": {
-            "none": 25300000
-          },
           "1L": {
             "2028": 100000,
             "2032": 10900000
           },
           "Equity": {
-            "none": 8600000
+            "none": 33900000
           },
           "Preferred": {
             "none": 73400000
@@ -1410,9 +1425,6 @@ const DATA = {
           }
         },
         "Software & Technology": {
-          "Unknown": {
-            "none": 68700000
-          },
           "1L": {
             "2026": 69800000,
             "2027": 301500000,
@@ -1430,7 +1442,7 @@ const DATA = {
           "Equity": {
             "2026": 0,
             "2035": 10600000,
-            "none": 363200000
+            "none": 431900000
           },
           "Preferred": {
             "2026": 0,
@@ -3093,17 +3105,17 @@ const DATA = {
         "Healthcare": {
           "count": 76,
           "fair_value": 2430856000,
-          "par": 3566296000
+          "par": 2279718000
         },
         "Consumer": {
           "count": 47,
           "fair_value": 2172693000,
-          "par": 4403853000
+          "par": 2358667000
         },
         "Business Services": {
           "count": 51,
           "fair_value": 1881138000,
-          "par": 1766774000
+          "par": 1762251000
         },
         "Industrials": {
           "count": 29,
@@ -3133,8 +3145,8 @@ const DATA = {
           "par": 12120192000
         },
         "Equity": {
-          "count": 46,
-          "fair_value": 1981260000,
+          "count": 57,
+          "fair_value": 2031900000,
           "par": 0
         },
         "2L": {
@@ -3167,11 +3179,6 @@ const DATA = {
           "fair_value": 83056000,
           "par": 118756000
         },
-        "Unknown": {
-          "count": 11,
-          "fair_value": 50640000,
-          "par": 3336287000
-        },
         "Bond": {
           "count": 1,
           "fair_value": 4694000,
@@ -3180,20 +3187,18 @@ const DATA = {
       },
       "sector_x_seniority": {
         "Business Services": {
-          "Unknown": 4522000,
           "1L": 1554473000,
           "2L": 144375000,
           "DDTL": 14783000,
-          "Equity": 63779000,
+          "Equity": 68301000,
           "Preferred": 84190000,
           "Revolver": 5899000,
           "Unsecured": 9117000
         },
         "Consumer": {
-          "Unknown": 3339000,
           "1L": 2010134000,
           "2L": 95267000,
-          "Equity": 41971000,
+          "Equity": 45310000,
           "Preferred": 0,
           "Revolver": 13553000,
           "Unsecured": 8429000
@@ -3215,11 +3220,10 @@ const DATA = {
           "Unsecured": 310762000
         },
         "Healthcare": {
-          "Unknown": 42779000,
           "1L": 2054748000,
           "2L": 29025000,
           "DDTL": 56614000,
-          "Equity": 221242000,
+          "Equity": 264021000,
           "Preferred": 16763000,
           "Revolver": 9685000
         },
@@ -3465,9 +3469,6 @@ const DATA = {
       ],
       "maturity_buckets": {
         "Business Services": {
-          "Unknown": {
-            "none": 4522000
-          },
           "1L": {
             "2026": 4161000,
             "2027": 32919000,
@@ -3484,7 +3485,7 @@ const DATA = {
             "2031": 12663000
           },
           "Equity": {
-            "none": 63779000
+            "none": 68301000
           },
           "Preferred": {
             "none": 84190000
@@ -3500,9 +3501,6 @@ const DATA = {
           }
         },
         "Consumer": {
-          "Unknown": {
-            "none": 3339000
-          },
           "1L": {
             "2026": 14648000,
             "2027": 247706000,
@@ -3516,7 +3514,7 @@ const DATA = {
             "2029": 95267000
           },
           "Equity": {
-            "none": 41971000
+            "none": 45310000
           },
           "Preferred": {
             "none": 0
@@ -3588,9 +3586,6 @@ const DATA = {
           }
         },
         "Healthcare": {
-          "Unknown": {
-            "none": 42779000
-          },
           "1L": {
             "2026": 107237000,
             "2027": 164531000,
@@ -3610,7 +3605,7 @@ const DATA = {
             "2032": 20107000
           },
           "Equity": {
-            "none": 221242000
+            "none": 264021000
           },
           "Preferred": {
             "none": 16763000
@@ -5378,6 +5373,926 @@ const DATA = {
         }
       ]
     }
+  },
+  "liquidity": {
+    "ARCC": {
+      "cash": 638000000,
+      "restricted_cash": 286000000,
+      "debt_instruments": [
+        {
+          "name": "January 2026 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 1150000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2026-01-15",
+          "maturity_year": 2026,
+          "interest_rate": "3.875%"
+        },
+        {
+          "name": "July 2026 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 1000000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2026-07-15",
+          "maturity_year": 2026,
+          "interest_rate": "2.150%"
+        },
+        {
+          "name": "January 2027 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 900000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2027-01-15",
+          "maturity_year": 2027,
+          "interest_rate": "6.331%"
+        },
+        {
+          "name": "June 2027 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 500000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2027-06-15",
+          "maturity_year": 2027,
+          "interest_rate": "2.875%"
+        },
+        {
+          "name": "June 2028 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 1250000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2028-06-15",
+          "maturity_year": 2028,
+          "interest_rate": "2.875%"
+        },
+        {
+          "name": "March 2029 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 1000000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2029-03-01",
+          "maturity_year": 2029,
+          "interest_rate": "5.895%"
+        },
+        {
+          "name": "July 2029 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 850000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2029-07-15",
+          "maturity_year": 2029,
+          "interest_rate": "5.393%"
+        },
+        {
+          "name": "September 2030 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 750000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2030-09-01",
+          "maturity_year": 2030,
+          "interest_rate": "5.643%"
+        },
+        {
+          "name": "January 2031 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 650000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2031-01-15",
+          "maturity_year": 2031,
+          "interest_rate": "5.100%"
+        },
+        {
+          "name": "November 2031 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 700000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2031-11-15",
+          "maturity_year": 2031,
+          "interest_rate": "3.200%"
+        },
+        {
+          "name": "March 2032 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 1000000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2032-03-08",
+          "maturity_year": 2032,
+          "interest_rate": "5.800%"
+        },
+        {
+          "name": "Revolving Credit Facility",
+          "type": "revolving_credit",
+          "secured": true,
+          "outstanding": 2028000000,
+          "total_commitment": 5493000000,
+          "undrawn": 3465000000,
+          "maturity_date": "2030-04-15",
+          "maturity_year": 2030,
+          "interest_rate": "SOFR + spread (tiered)"
+        },
+        {
+          "name": "Revolving Funding Facility",
+          "type": "revolving_credit",
+          "secured": true,
+          "outstanding": 1234000000,
+          "total_commitment": 2250000000,
+          "undrawn": 1016000000,
+          "maturity_date": "2030-04-15",
+          "maturity_year": 2030,
+          "interest_rate": "SOFR + spread"
+        },
+        {
+          "name": "SMBC Funding Facility",
+          "type": "revolving_credit",
+          "secured": true,
+          "outstanding": 563000000,
+          "total_commitment": 1100000000,
+          "undrawn": 537000000,
+          "maturity_date": "2028-07-31",
+          "maturity_year": 2028,
+          "interest_rate": "SOFR + spread"
+        },
+        {
+          "name": "BNP Funding Facility",
+          "type": "revolving_credit",
+          "secured": true,
+          "outstanding": 717000000,
+          "total_commitment": 1265000000,
+          "undrawn": 548000000,
+          "maturity_date": "2029-03-22",
+          "maturity_year": 2029,
+          "interest_rate": "SOFR + spread"
+        },
+        {
+          "name": "April 2036 CLO Notes",
+          "type": "clo",
+          "secured": true,
+          "outstanding": 476000000,
+          "total_commitment": 476000000,
+          "undrawn": null,
+          "maturity_date": "2036-10-24",
+          "maturity_year": 2036,
+          "interest_rate": "SOFR + 1.80% to 2.20% (tranched)"
+        },
+        {
+          "name": "October 2036 CLO Secured Loans",
+          "type": "clo",
+          "secured": true,
+          "outstanding": 544000000,
+          "total_commitment": 544000000,
+          "undrawn": null,
+          "maturity_date": "2036-10-24",
+          "maturity_year": 2036,
+          "interest_rate": "SOFR + 1.54% to 1.83% (tranched)"
+        },
+        {
+          "name": "January 2038 CLO Notes",
+          "type": "clo",
+          "secured": true,
+          "outstanding": 700000000,
+          "total_commitment": 700000000,
+          "undrawn": null,
+          "maturity_date": "2038-01-20",
+          "maturity_year": 2038,
+          "interest_rate": "SOFR + 1.40% to 1.85% (tranched)"
+        }
+      ],
+      "total_undrawn_revolver": 5566000000,
+      "near_term_maturities_2yr": 3550000000,
+      "unfunded_total": 5316000000,
+      "unfunded_detail": [
+        {
+          "section": "Revolving Loan Commitments",
+          "amount": 2231000000
+        },
+        {
+          "section": "Delayed Draw Loan Commitments",
+          "amount": 2959000000
+        },
+        {
+          "section": "Equity Commitments",
+          "amount": 126000000
+        }
+      ]
+    },
+    "BXSL": {
+      "cash": 289605000,
+      "restricted_cash": 0,
+      "debt_instruments": [
+        {
+          "name": "Jackson Hole Funding Facility",
+          "type": "secured_credit_facility",
+          "secured": true,
+          "outstanding": 22374000,
+          "total_commitment": 500000000,
+          "undrawn": 477626000,
+          "maturity_date": "2027-05-17",
+          "maturity_year": 2027,
+          "interest_rate": "SOFR + 2.375%"
+        },
+        {
+          "name": "Breckenridge Funding Facility",
+          "type": "secured_credit_facility",
+          "secured": true,
+          "outstanding": 652550000,
+          "total_commitment": 1175000000,
+          "undrawn": 418348000,
+          "maturity_date": "2029-06-18",
+          "maturity_year": 2029,
+          "interest_rate": "SOFR + 1.70%"
+        },
+        {
+          "name": "Big Sky Funding Facility",
+          "type": "secured_credit_facility",
+          "secured": true,
+          "outstanding": 585900000,
+          "total_commitment": 650000000,
+          "undrawn": 64100000,
+          "maturity_date": "2027-09-30",
+          "maturity_year": 2027,
+          "interest_rate": "SOFR + 1.85%"
+        },
+        {
+          "name": "BXSL 2025-1 Facility",
+          "type": "secured_credit_facility",
+          "secured": true,
+          "outstanding": 34800000,
+          "total_commitment": 400000000,
+          "undrawn": 351400000,
+          "maturity_date": "2028-12-27",
+          "maturity_year": 2028,
+          "interest_rate": "SOFR + 1.65%"
+        },
+        {
+          "name": "Revolving Credit Facility",
+          "type": "secured_credit_facility",
+          "secured": true,
+          "outstanding": 1447497000,
+          "total_commitment": 2425000000,
+          "undrawn": 977503000,
+          "maturity_date": "2029-08-04",
+          "maturity_year": 2029,
+          "interest_rate": "SOFR + 0.75% to 1.75% (tiered)"
+        },
+        {
+          "name": "2026 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 800000000,
+          "total_commitment": 800000000,
+          "undrawn": null,
+          "maturity_date": "2026-01-15",
+          "maturity_year": 2026,
+          "interest_rate": "3.625%"
+        },
+        {
+          "name": "New 2026 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 700000000,
+          "total_commitment": 700000000,
+          "undrawn": null,
+          "maturity_date": "2026-09-16",
+          "maturity_year": 2026,
+          "interest_rate": "2.750%"
+        },
+        {
+          "name": "2027 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 650000000,
+          "total_commitment": 650000000,
+          "undrawn": null,
+          "maturity_date": "2027-02-15",
+          "maturity_year": 2027,
+          "interest_rate": "2.125%"
+        },
+        {
+          "name": "2028 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 650000000,
+          "total_commitment": 650000000,
+          "undrawn": null,
+          "maturity_date": "2028-09-30",
+          "maturity_year": 2028,
+          "interest_rate": "2.850%"
+        },
+        {
+          "name": "November 2027 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 400000000,
+          "total_commitment": 400000000,
+          "undrawn": null,
+          "maturity_date": "2027-11-15",
+          "maturity_year": 2027,
+          "interest_rate": "5.875%"
+        },
+        {
+          "name": "April 2028 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 700000000,
+          "total_commitment": 700000000,
+          "undrawn": null,
+          "maturity_date": "2028-04-13",
+          "maturity_year": 2028,
+          "interest_rate": "5.350%"
+        },
+        {
+          "name": "June 2030 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 500000000,
+          "total_commitment": 500000000,
+          "undrawn": null,
+          "maturity_date": "2030-06-30",
+          "maturity_year": 2030,
+          "interest_rate": "5.300%"
+        },
+        {
+          "name": "January 2031 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 500000000,
+          "total_commitment": 500000000,
+          "undrawn": null,
+          "maturity_date": "2031-01-31",
+          "maturity_year": 2031,
+          "interest_rate": "5.125%"
+        },
+        {
+          "name": "2024-1 Notes",
+          "type": "clo",
+          "secured": true,
+          "outstanding": 457500000,
+          "total_commitment": 457500000,
+          "undrawn": null,
+          "maturity_date": "2037-01-20",
+          "maturity_year": 2037,
+          "interest_rate": "SOFR + 1.51% to 2.00% (tranched)"
+        }
+      ],
+      "total_undrawn_revolver": 2288977000,
+      "near_term_maturities_2yr": 2550000000,
+      "unfunded_total": 1951800000,
+      "unfunded_detail": [
+        {
+          "section": "Delayed Draw & Revolver Commitments",
+          "amount": 1800000000
+        },
+        {
+          "section": "Committed Not Yet Funded",
+          "amount": 151800000
+        }
+      ]
+    },
+    "FSK": {
+      "cash": 181000000,
+      "restricted_cash": 0,
+      "debt_instruments": [
+        {
+          "name": "Callowhill Credit Facility",
+          "type": "revolving_credit",
+          "secured": true,
+          "outstanding": 284000000,
+          "total_commitment": null,
+          "undrawn": 116000000,
+          "maturity_date": "2030-06-02",
+          "maturity_year": 2030,
+          "interest_rate": "SOFR+1.75%"
+        },
+        {
+          "name": "CCT Tokyo Funding Credit Facility",
+          "type": "revolving_credit",
+          "secured": true,
+          "outstanding": 45000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2026-06-02",
+          "maturity_year": 2026,
+          "interest_rate": "SOFR+1.90% - 2.05%"
+        },
+        {
+          "name": "Meadowbrook Run Credit Facility",
+          "type": "revolving_credit",
+          "secured": true,
+          "outstanding": 265000000,
+          "total_commitment": null,
+          "undrawn": 35000000,
+          "maturity_date": "2028-11-22",
+          "maturity_year": 2028,
+          "interest_rate": "SOFR+1.95%"
+        },
+        {
+          "name": "Senior Secured Revolving Credit Facility",
+          "type": "revolving_credit",
+          "secured": true,
+          "outstanding": 1533000000,
+          "total_commitment": null,
+          "undrawn": 3117000000,
+          "maturity_date": "2030-07-16",
+          "maturity_year": 2030,
+          "interest_rate": "SOFR+1.75% - 1.88%"
+        },
+        {
+          "name": "3.400% Notes due 2026",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 1000000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2026-01-15",
+          "maturity_year": 2026,
+          "interest_rate": "3.40%"
+        },
+        {
+          "name": "2.625% Notes due 2027",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 400000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2027-01-15",
+          "maturity_year": 2027,
+          "interest_rate": "2.63%"
+        },
+        {
+          "name": "3.250% Notes due 2027",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 500000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2027-07-15",
+          "maturity_year": 2027,
+          "interest_rate": "3.25%"
+        },
+        {
+          "name": "3.125% Notes due 2028",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 750000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2028-10-12",
+          "maturity_year": 2028,
+          "interest_rate": "3.13%"
+        },
+        {
+          "name": "7.875% Notes due 2029",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 400000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2029-01-15",
+          "maturity_year": 2029,
+          "interest_rate": "7.88%"
+        },
+        {
+          "name": "6.875% Notes due 2029",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 600000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2029-08-15",
+          "maturity_year": 2029,
+          "interest_rate": "6.88%"
+        },
+        {
+          "name": "6.125% Notes due 2030",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 700000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2030-01-15",
+          "maturity_year": 2030,
+          "interest_rate": "6.13%"
+        },
+        {
+          "name": "6.125% Notes due 2031",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 400000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2031-01-15",
+          "maturity_year": 2031,
+          "interest_rate": "6.13%"
+        },
+        {
+          "name": "CLO-2 Notes",
+          "type": "clo",
+          "secured": true,
+          "outstanding": 380000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2037-04-15",
+          "maturity_year": 2037,
+          "interest_rate": "SOFR+1.48% - 2.15%"
+        },
+        {
+          "name": "CLO-3 Notes",
+          "type": "clo",
+          "secured": true,
+          "outstanding": 363000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2038-01-15",
+          "maturity_year": 2038,
+          "interest_rate": "SOFR+1.47% - 2.10%"
+        }
+      ],
+      "total_undrawn_revolver": 3268000000,
+      "near_term_maturities_2yr": 1900000000,
+      "unfunded_total": 1448100000,
+      "unfunded_detail": [
+        {
+          "section": "Senior Secured Loans\u2014First Lien",
+          "amount": 1338400000
+        },
+        {
+          "section": "Subordinated Debt",
+          "amount": 1600000
+        },
+        {
+          "section": "Asset Based Finance",
+          "amount": 98900000
+        },
+        {
+          "section": "Equity/Other",
+          "amount": 9200000
+        }
+      ]
+    },
+    "GBDC": {
+      "cash": 93969000,
+      "restricted_cash": 66573000,
+      "debt_instruments": [
+        {
+          "name": "2024 Debt Securitization",
+          "type": "clo",
+          "secured": true,
+          "outstanding": 1364000000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2036-10-20",
+          "maturity_year": 2036,
+          "interest_rate": "SOFR + 1.56% to 2.10% (tranched)"
+        },
+        {
+          "name": "JPM Credit Facility",
+          "type": "revolving_credit",
+          "secured": true,
+          "outstanding": 1115726000,
+          "total_commitment": 1997500000,
+          "undrawn": 881774000,
+          "maturity_date": "2030-04-04",
+          "maturity_year": 2030,
+          "interest_rate": "SOFR + 1.525% to 1.775% (tiered)"
+        },
+        {
+          "name": "2026 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 599658000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2026-08-24",
+          "maturity_year": 2026,
+          "interest_rate": "2.500%"
+        },
+        {
+          "name": "2027 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 349177000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2027-02-15",
+          "maturity_year": 2027,
+          "interest_rate": "2.050%"
+        },
+        {
+          "name": "2028 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 719100000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2028-12-05",
+          "maturity_year": 2028,
+          "interest_rate": "7.050%"
+        },
+        {
+          "name": "2029 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 755415000,
+          "total_commitment": null,
+          "undrawn": null,
+          "maturity_date": "2029-07-15",
+          "maturity_year": 2029,
+          "interest_rate": "6.000%"
+        }
+      ],
+      "total_undrawn_revolver": 881774000,
+      "near_term_maturities_2yr": 948835000,
+      "unfunded_total": 815900000,
+      "unfunded_detail": [
+        {
+          "section": "Revolver Commitments",
+          "amount": 242200000
+        },
+        {
+          "section": "Delayed Draw & Other Commitments",
+          "amount": 573700000
+        }
+      ]
+    },
+    "OBDC": {
+      "cash": 568542000,
+      "restricted_cash": 0,
+      "debt_instruments": [
+        {
+          "name": "Revolving Credit Facility",
+          "type": "revolving_credit",
+          "secured": true,
+          "outstanding": 1012000000,
+          "total_commitment": 4025000000,
+          "undrawn": 2970841000,
+          "maturity_date": "2029-11-22",
+          "maturity_year": 2029,
+          "interest_rate": "SOFR + 1.525% to 1.775% (tiered)"
+        },
+        {
+          "name": "SPV Asset Facility II",
+          "type": "secured_credit_facility",
+          "secured": true,
+          "outstanding": 161700000,
+          "total_commitment": 300000000,
+          "undrawn": 137146000,
+          "maturity_date": "2036-04-17",
+          "maturity_year": 2036,
+          "interest_rate": "SOFR + 1.95%"
+        },
+        {
+          "name": "SPV Asset Facility V",
+          "type": "secured_credit_facility",
+          "secured": true,
+          "outstanding": 384000000,
+          "total_commitment": 525000000,
+          "undrawn": 48167000,
+          "maturity_date": null,
+          "maturity_year": null,
+          "interest_rate": "SOFR + 1.90%"
+        },
+        {
+          "name": "SPV Asset Facility VI",
+          "type": "secured_credit_facility",
+          "secured": true,
+          "outstanding": 300000000,
+          "total_commitment": 500000000,
+          "undrawn": 92046000,
+          "maturity_date": null,
+          "maturity_year": null,
+          "interest_rate": "SOFR + 1.70%"
+        },
+        {
+          "name": "SPV Asset Facility VII",
+          "type": "secured_credit_facility",
+          "secured": true,
+          "outstanding": 210000000,
+          "total_commitment": 300000000,
+          "undrawn": 9964000,
+          "maturity_date": null,
+          "maturity_year": null,
+          "interest_rate": "SOFR + spread (variable)"
+        },
+        {
+          "name": "CLO I",
+          "type": "clo",
+          "secured": true,
+          "outstanding": 390000000,
+          "total_commitment": 390000000,
+          "undrawn": -3489000,
+          "maturity_date": "2036-02-20",
+          "maturity_year": 2036,
+          "interest_rate": "SOFR + spread (tranched)"
+        },
+        {
+          "name": "CLO III",
+          "type": "clo",
+          "secured": true,
+          "outstanding": 260000000,
+          "total_commitment": 260000000,
+          "undrawn": -1727000,
+          "maturity_date": "2036-04-01",
+          "maturity_year": 2036,
+          "interest_rate": "SOFR + spread (tranched)"
+        },
+        {
+          "name": "CLO IV",
+          "type": "clo",
+          "secured": true,
+          "outstanding": 275463000,
+          "total_commitment": 275463000,
+          "undrawn": -3346000,
+          "maturity_date": "2029-11-01",
+          "maturity_year": 2029,
+          "interest_rate": "SOFR + spread (tranched)"
+        },
+        {
+          "name": "CLO V",
+          "type": "clo",
+          "secured": true,
+          "outstanding": 509625000,
+          "total_commitment": 509625000,
+          "undrawn": -2062000,
+          "maturity_date": "2034-04-01",
+          "maturity_year": 2034,
+          "interest_rate": "SOFR + spread (tranched)"
+        },
+        {
+          "name": "CLO VII",
+          "type": "clo",
+          "secured": true,
+          "outstanding": 330500000,
+          "total_commitment": 330500000,
+          "undrawn": -2127000,
+          "maturity_date": "2038-04-01",
+          "maturity_year": 2038,
+          "interest_rate": "SOFR + spread (tranched)"
+        },
+        {
+          "name": "CLO X",
+          "type": "clo",
+          "secured": true,
+          "outstanding": 272000000,
+          "total_commitment": 272000000,
+          "undrawn": -1797000,
+          "maturity_date": "2037-04-01",
+          "maturity_year": 2037,
+          "interest_rate": "SOFR + spread (tranched)"
+        },
+        {
+          "name": "CLO XIV",
+          "type": "clo",
+          "secured": true,
+          "outstanding": 260000000,
+          "total_commitment": 260000000,
+          "undrawn": -1578000,
+          "maturity_date": "2035-10-01",
+          "maturity_year": 2035,
+          "interest_rate": "SOFR + spread (tranched)"
+        },
+        {
+          "name": "2026 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 500000000,
+          "total_commitment": 500000000,
+          "undrawn": -91000,
+          "maturity_date": "2026-01-15",
+          "maturity_year": 2026,
+          "interest_rate": "4.250%"
+        },
+        {
+          "name": "July 2026 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 1000000000,
+          "total_commitment": 1000000000,
+          "undrawn": -2717000,
+          "maturity_date": "2026-07-15",
+          "maturity_year": 2026,
+          "interest_rate": "3.400%"
+        },
+        {
+          "name": "2027 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 500000000,
+          "total_commitment": 500000000,
+          "undrawn": -2117000,
+          "maturity_date": "2027-01-15",
+          "maturity_year": 2027,
+          "interest_rate": "2.625%"
+        },
+        {
+          "name": "April 2027 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 325000000,
+          "total_commitment": 325000000,
+          "undrawn": -1078000,
+          "maturity_date": "2027-04-13",
+          "maturity_year": 2027,
+          "interest_rate": "3.125%"
+        },
+        {
+          "name": "July 2027 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 250000000,
+          "total_commitment": 250000000,
+          "undrawn": -1389000,
+          "maturity_date": "2027-07-21",
+          "maturity_year": 2027,
+          "interest_rate": "7.580%"
+        },
+        {
+          "name": "2028 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 850000000,
+          "total_commitment": 850000000,
+          "undrawn": -6549000,
+          "maturity_date": "2028-06-11",
+          "maturity_year": 2028,
+          "interest_rate": "2.875%"
+        },
+        {
+          "name": "June 2028 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 100000000,
+          "total_commitment": 100000000,
+          "undrawn": -585000,
+          "maturity_date": "2028-06-29",
+          "maturity_year": 2028,
+          "interest_rate": "8.100%"
+        },
+        {
+          "name": "2029 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 1000000000,
+          "total_commitment": 1000000000,
+          "undrawn": -8373000,
+          "maturity_date": "2029-03-15",
+          "maturity_year": 2029,
+          "interest_rate": "5.950%"
+        },
+        {
+          "name": "2030 Notes",
+          "type": "unsecured_notes",
+          "secured": false,
+          "outstanding": 500000000,
+          "total_commitment": 500000000,
+          "undrawn": -10025000,
+          "maturity_date": "2030-07-15",
+          "maturity_year": 2030,
+          "interest_rate": "6.200%"
+        }
+      ],
+      "total_undrawn_revolver": 3258164000,
+      "near_term_maturities_2yr": 2575000000,
+      "unfunded_total": 1674958000,
+      "unfunded_detail": [
+        {
+          "section": "Revolving Loan Commitments",
+          "amount": 888190000
+        },
+        {
+          "section": "Delayed Draw Loan Commitments",
+          "amount": 652746000
+        },
+        {
+          "section": "Specialty Finance Equity Commitments",
+          "amount": 129076000
+        },
+        {
+          "section": "Common Equity Commitments",
+          "amount": 4946000
+        }
+      ]
+    }
   }
 };
 
@@ -6761,9 +7676,13 @@ document.getElementById('viewTabs').addEventListener('click', e => {
   document.querySelectorAll('#viewTabs button').forEach(b => b.classList.toggle('active', b.dataset.view === selectedView));
   document.getElementById('panel-stress').classList.toggle('active', selectedView === 'stress');
   document.getElementById('panel-pik').classList.toggle('active', selectedView === 'pik');
+  document.getElementById('panel-liquidity').classList.toggle('active', selectedView === 'liquidity');
   if (selectedView === 'pik') {
     renderPIKTab();
     renderNATab();
+  }
+  if (selectedView === 'liquidity') {
+    renderLiquidityTab();
   }
 });
 
@@ -6841,10 +7760,318 @@ function refreshAll() {
     if (sectorChart) { sectorChart.destroy(); sectorChart = null; }
     if (bdcChart) { bdcChart.destroy(); bdcChart = null; }
     recalculate();
+  } else if (selectedView === 'liquidity') {
+    renderLiquidityTab();
   } else {
     renderPIKTab();
     renderNATab();
   }
+}
+
+// ======== LIQUIDITY TAB ========
+let liqDrawRate = 15;
+let liqRevolverRisk = 0;
+let liqForcedSale = 0;
+
+['draw', 'revolver', 'sale'].forEach(key => {
+  const ids = key === 'draw' ? ['liq-draw-r', 'liq-draw-n'] : key === 'revolver' ? ['liq-revolver-r', 'liq-revolver-n'] : ['liq-sale-r', 'liq-sale-n'];
+  const maxVal = key === 'sale' ? 50 : 100;
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      const v = Math.min(maxVal, Math.max(0, parseFloat(el.value) || 0));
+      if (key === 'draw') liqDrawRate = v;
+      else if (key === 'revolver') liqRevolverRisk = v;
+      else liqForcedSale = v;
+      document.getElementById(ids[0]).value = v;
+      document.getElementById(ids[1]).value = v;
+    });
+    el.addEventListener('change', () => { renderLiquidityTab(); });
+  });
+});
+
+function applyLiqPreset(name) {
+  const presets = {
+    base: {draw: 15, revolver: 0, sale: 0},
+    moderate: {draw: 30, revolver: 10, sale: 5},
+    severe: {draw: 50, revolver: 25, sale: 15},
+    crisis: {draw: 75, revolver: 50, sale: 25},
+  };
+  const p = presets[name];
+  if (!p) return;
+  liqDrawRate = p.draw; liqRevolverRisk = p.revolver; liqForcedSale = p.sale;
+  document.getElementById('liq-draw-r').value = p.draw;
+  document.getElementById('liq-draw-n').value = p.draw;
+  document.getElementById('liq-revolver-r').value = p.revolver;
+  document.getElementById('liq-revolver-n').value = p.revolver;
+  document.getElementById('liq-sale-r').value = p.sale;
+  document.getElementById('liq-sale-n').value = p.sale;
+  renderLiquidityTab();
+}
+
+let maturityWallChart = null;
+let coverageChart = null;
+
+function renderLiquidityTab() {
+  if (!DATA.liquidity) return;
+  const tickers = DATA.tickers;
+  if (!_computed) { computeStress(); }
+  const c = _computed;
+
+  // Compute liquidity metrics per BDC
+  const liqResults = {};
+  for (const t of tickers) {
+    const liq = DATA.liquidity[t];
+    const cap = DATA.capital_structure[t];
+    if (!liq || !cap) continue;
+
+    const portfolioLoss = (c && c.lossByBDC[t]) || 0;
+    const lossPct = cap.total_investments > 0 ? portfolioLoss / cap.total_investments : 0;
+
+    // Unfunded draws
+    const stressedDraw = liq.unfunded_total * (liqDrawRate / 100);
+    // Draws become assets (new loans at par, but subject to same stress)
+    const drawLoss = stressedDraw * lossPct;
+
+    // Post-stress assets and debt
+    const postAssets = cap.total_assets - portfolioLoss + stressedDraw - drawLoss;
+    const postDebt = cap.total_debt + stressedDraw;
+
+    // Asset coverage
+    const acr = postDebt > 0 ? (postAssets / postDebt) * 100 : 999;
+    const distTo150 = postAssets - 1.5 * postDebt;
+
+    // Revolver capacity (adjusted for renewal risk + borrowing base shrinkage)
+    const bbShrinkage = Math.min(1, lossPct * 1.5); // 1.5x proportional
+    const revolverAdj = liq.total_undrawn_revolver * (1 - liqRevolverRisk / 100) * (1 - bbShrinkage);
+
+    // Net liquidity
+    const grossLiq = liq.cash + revolverAdj;
+    const netLiq = grossLiq - stressedDraw - liq.near_term_maturities_2yr;
+
+    liqResults[t] = {
+      cash: liq.cash,
+      revolverAdj,
+      grossLiq,
+      stressedDraw,
+      nearTermMat: liq.near_term_maturities_2yr,
+      netLiq,
+      acr,
+      distTo150,
+      postAssets,
+      postDebt,
+      unfundedTotal: liq.unfunded_total,
+      unfundedDetail: liq.unfunded_detail,
+    };
+  }
+
+  // Summary cards
+  const cardsDiv = document.getElementById('liqCards');
+  let totalNetLiq = 0, minACR = 999, weakest = '';
+  for (const t of tickers) {
+    if (!liqResults[t]) continue;
+    totalNetLiq += liqResults[t].netLiq;
+    if (liqResults[t].acr < minACR) { minACR = liqResults[t].acr; weakest = t; }
+  }
+  const acrColor = minACR >= 200 ? '#27ae60' : minACR >= 150 ? '#e67e22' : '#c0392b';
+  const netColor = totalNetLiq >= 0 ? '#27ae60' : '#c0392b';
+  cardsDiv.innerHTML = `
+    <div class="card"><div class="card-label">Aggregate Net Liquidity</div><div class="card-value" style="color:${netColor}">${fmtDollar(totalNetLiq)}</div></div>
+    <div class="card"><div class="card-label">Weakest Coverage (${weakest})</div><div class="card-value" style="color:${acrColor}">${minACR.toFixed(0)}%</div></div>
+    <div class="card"><div class="card-label">Dist. to 150% Breach (${weakest})</div><div class="card-value">${fmtDollar(liqResults[weakest] ? liqResults[weakest].distTo150 : 0)}</div></div>
+    <div class="card"><div class="card-label">Agg. Unfunded Draws</div><div class="card-value">${fmtDollar(tickers.reduce((s,t) => s + (liqResults[t] ? liqResults[t].stressedDraw : 0), 0))}</div></div>
+  `;
+
+  // Chart 1: Debt Maturity Wall
+  renderMaturityWall(tickers);
+
+  // Chart 2: Asset Coverage
+  renderCoverageChart(tickers, liqResults);
+
+  // Table 1: Net Liquidity Waterfall
+  renderLiqWaterfall(tickers, liqResults);
+
+  // Table 2: Unfunded Stress
+  renderUnfundedTable(tickers, liqResults);
+}
+
+function renderMaturityWall(tickers) {
+  const canvas = document.getElementById('chartMaturityWall');
+  if (!canvas) return;
+  if (maturityWallChart) { maturityWallChart.destroy(); maturityWallChart = null; }
+
+  // Bucket all instruments by year and type
+  const years = {};
+  for (const t of tickers) {
+    const liq = DATA.liquidity[t];
+    if (!liq) continue;
+    for (const inst of liq.debt_instruments) {
+      const yr = inst.maturity_year || 2040;
+      const bucket = yr <= 2025 ? '2025-' : yr >= 2036 ? '2036+' : String(yr);
+      if (!years[bucket]) years[bucket] = {revolving: 0, clo: 0, unsecured: 0};
+      if (inst.type === 'unsecured_notes') years[bucket].unsecured += inst.outstanding;
+      else if (inst.type === 'clo') years[bucket].clo += inst.outstanding;
+      else years[bucket].revolving += inst.outstanding;
+    }
+  }
+
+  const labels = Object.keys(years).sort();
+  const config = {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Revolving/Credit', data: labels.map(y => (years[y].revolving || 0) / 1e9), backgroundColor: '#4A7FB5', borderWidth: 0 },
+        { label: 'CLOs', data: labels.map(y => (years[y].clo || 0) / 1e9), backgroundColor: '#6B9DAD', borderWidth: 0 },
+        { label: 'Unsecured Notes', data: labels.map(y => (years[y].unsecured || 0) / 1e9), backgroundColor: '#D4A76A', borderWidth: 0 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { position: 'top', labels: { color: '#555', font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': $' + ctx.parsed.y.toFixed(1) + 'B' } }
+      },
+      scales: {
+        x: { stacked: true, ticks: { color: '#555' }, grid: { display: false } },
+        y: { stacked: true, ticks: { color: '#666', callback: v => '$' + v + 'B' }, grid: { color: '#eee' } }
+      }
+    }
+  };
+  maturityWallChart = new Chart(canvas, config);
+}
+
+function renderCoverageChart(tickers, liqResults) {
+  const canvas = document.getElementById('chartCoverage');
+  if (!canvas) return;
+  if (coverageChart) { coverageChart.destroy(); coverageChart = null; }
+
+  // Current (pre-stress) coverage
+  const currentACR = tickers.map(t => {
+    const cap = DATA.capital_structure[t];
+    return cap && cap.total_debt > 0 ? (cap.total_assets / cap.total_debt) * 100 : 0;
+  });
+  const stressedACR = tickers.map(t => liqResults[t] ? liqResults[t].acr : 0);
+
+  coverageChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: tickers,
+      datasets: [
+        { label: 'Current', data: currentACR, backgroundColor: '#7CAE7A88', borderColor: '#7CAE7A', borderWidth: 1 },
+        { label: 'Post-Stress', data: stressedACR, backgroundColor: tickers.map((t,i) => stressedACR[i] >= 200 ? '#7CAE7Acc' : stressedACR[i] >= 150 ? '#e67e22cc' : '#c0392bcc'), borderColor: tickers.map((t,i) => stressedACR[i] >= 200 ? '#7CAE7A' : stressedACR[i] >= 150 ? '#e67e22' : '#c0392b'), borderWidth: 1 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { position: 'top', labels: { color: '#555', font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(0) + '%' } },
+        annotation: undefined
+      },
+      scales: {
+        x: { ticks: { color: '#555', font: { weight: '600' } }, grid: { display: false } },
+        y: { min: 100, ticks: { color: '#666', callback: v => v + '%' }, grid: { color: '#eee' } }
+      }
+    },
+    plugins: [{
+      id: 'coverageLines',
+      afterDraw(chart) {
+        const ctx = chart.ctx;
+        const yAxis = chart.scales.y;
+        const xAxis = chart.scales.x;
+        // 150% line
+        const y150 = yAxis.getPixelForValue(150);
+        ctx.save();
+        ctx.strokeStyle = '#c0392b';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(xAxis.left, y150);
+        ctx.lineTo(xAxis.right, y150);
+        ctx.stroke();
+        ctx.fillStyle = '#c0392b';
+        ctx.font = '10px -apple-system, sans-serif';
+        ctx.fillText('150% min', xAxis.right + 4, y150 + 3);
+        // 200% line
+        const y200 = yAxis.getPixelForValue(200);
+        ctx.strokeStyle = '#e67e22';
+        ctx.beginPath();
+        ctx.moveTo(xAxis.left, y200);
+        ctx.lineTo(xAxis.right, y200);
+        ctx.stroke();
+        ctx.fillText('200%', xAxis.right + 4, y200 + 3);
+        ctx.restore();
+      }
+    }]
+  });
+}
+
+function renderLiqWaterfall(tickers, liqResults) {
+  const container = document.getElementById('liqWaterfallTable');
+  if (!container) return;
+  const td = 'padding:8px 10px;border:1px solid #ddd;text-align:right;color:#333';
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f0f0ec">';
+  html += '<th style="padding:8px 10px;border:1px solid #ddd;text-align:left;font-weight:600;color:#666">BDC</th>';
+  html += '<th style="' + td + ';font-weight:600;color:#666">Cash</th>';
+  html += '<th style="' + td + ';font-weight:600;color:#666">Undrawn Revolver (adj)</th>';
+  html += '<th style="' + td + ';font-weight:600;color:#666">Gross Liquidity</th>';
+  html += '<th style="' + td + ';font-weight:600;color:#666">Unfunded Draws</th>';
+  html += '<th style="' + td + ';font-weight:600;color:#666">Near-Term Maturities</th>';
+  html += '<th style="' + td + ';font-weight:600;color:#666">Net Liquidity</th>';
+  html += '</tr></thead><tbody>';
+  for (const t of tickers) {
+    const r = liqResults[t];
+    if (!r) continue;
+    const netColor = r.netLiq >= 0 ? '#27ae60' : '#c0392b';
+    html += '<tr>';
+    html += '<td style="' + td + ';text-align:left;font-weight:600">' + t + '</td>';
+    html += '<td style="' + td + '">' + fmtDollar(r.cash) + '</td>';
+    html += '<td style="' + td + '">' + fmtDollar(r.revolverAdj) + '</td>';
+    html += '<td style="' + td + ';font-weight:600">' + fmtDollar(r.grossLiq) + '</td>';
+    html += '<td style="' + td + ';color:#c0392b">(' + fmtDollar(r.stressedDraw) + ')</td>';
+    html += '<td style="' + td + ';color:#c0392b">(' + fmtDollar(r.nearTermMat) + ')</td>';
+    html += '<td style="' + td + ';font-weight:700;font-size:14px;color:' + netColor + '">' + fmtDollar(r.netLiq) + '</td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function renderUnfundedTable(tickers, liqResults) {
+  const container = document.getElementById('liqUnfundedTable');
+  if (!container) return;
+  const td = 'padding:8px 10px;border:1px solid #ddd;text-align:right;color:#333';
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f0f0ec">';
+  html += '<th style="padding:8px 10px;border:1px solid #ddd;text-align:left;font-weight:600;color:#666">BDC</th>';
+  html += '<th style="' + td + ';font-weight:600;color:#666">Total Unfunded</th>';
+  html += '<th style="' + td + ';font-weight:600;color:#666">Draw Rate</th>';
+  html += '<th style="' + td + ';font-weight:600;color:#666">Stressed Draw</th>';
+  html += '<th style="' + td + ';font-weight:600;color:#666">Cash Buffer</th>';
+  html += '<th style="' + td + ';font-weight:600;color:#666">Coverage</th>';
+  html += '<th style="' + td + ';font-weight:600;color:#666">ACR Impact</th>';
+  html += '</tr></thead><tbody>';
+  for (const t of tickers) {
+    const r = liqResults[t];
+    const cap = DATA.capital_structure[t];
+    if (!r || !cap) continue;
+    const origACR = cap.total_debt > 0 ? (cap.total_assets / cap.total_debt * 100) : 0;
+    const acrDrop = origACR - r.acr;
+    const coverage = r.stressedDraw > 0 ? r.grossLiq / r.stressedDraw : Infinity;
+    const covColor = coverage >= 2 ? '#27ae60' : coverage >= 1 ? '#e67e22' : '#c0392b';
+    html += '<tr>';
+    html += '<td style="' + td + ';text-align:left;font-weight:600">' + t + '</td>';
+    html += '<td style="' + td + '">' + fmtDollar(r.unfundedTotal) + '</td>';
+    html += '<td style="' + td + '">' + liqDrawRate + '%</td>';
+    html += '<td style="' + td + '">' + fmtDollar(r.stressedDraw) + '</td>';
+    html += '<td style="' + td + '">' + fmtDollar(r.grossLiq) + '</td>';
+    html += '<td style="' + td + ';font-weight:600;color:' + covColor + '">' + (coverage === Infinity ? '\u221E' : coverage.toFixed(1) + 'x') + '</td>';
+    html += '<td style="' + td + ';color:#c0392b">-' + acrDrop.toFixed(0) + 'pp</td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  container.innerHTML = html;
 }
 
 // ======== INIT ========
