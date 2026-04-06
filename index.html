@@ -602,6 +602,15 @@
       <div class="card"><div class="card-label">Total Loss</div><div class="card-value loss" id="cardLoss">--</div></div>
       <div class="card"><div class="card-label">Loss %</div><div class="card-value loss" id="cardLossPct">--</div></div>
       <div class="card"><div class="card-label">Post-Stress FV</div><div class="card-value" id="cardPostFV">--</div></div>
+      <div class="card" style="position:relative"><div class="card-label">Implied NAV/Share <span class="info-btn" data-info="impliedNav">&#9432;</span></div><div class="card-value" id="cardNavPost">--</div><div class="card-sub" id="cardNavDelta" style="font-size:11px;margin-top:2px"></div>
+        <div class="info-popup" data-popup="impliedNav" style="display:none;left:0;top:100%;margin-top:4px">
+          <p><strong>Post-stress NAV per share.</strong> Portfolio losses flow through leverage directly to equity. Equity residual = total assets − portfolio loss − all liabilities. Implied NAV/share = equity residual / shares outstanding.</p>
+          <p>The leverage multiplier means a 10% portfolio loss can translate to a 20-30% equity loss depending on the debt/equity ratio.</p>
+        </div>
+      </div>
+      <div class="card"><div class="card-label">Equity Loss</div><div class="card-value loss" id="cardEquityLoss">--</div></div>
+    </div>
+    <div class="card-row" id="equityAllCards" style="display:none;margin-top:-8px">
     </div>
 
     <div class="chart-row">
@@ -614,16 +623,14 @@
         <div class="chart-wrap"><canvas id="chartSector"></canvas></div>
       </div>
     </div>
-    <div class="chart-row" style="grid-template-columns:1fr">
+    <div class="chart-row" style="grid-template-columns:1fr" id="bdcCompSection">
       <div class="chart-box">
         <div class="chart-header"><h3>BDC Comparison (Original vs Post-Stress)</h3><div class="unit-toggle" id="toggleBDC"><button class="utog" data-unit="$">$</button><button class="utog active" data-unit="%">%</button></div></div>
         <div class="chart-wrap" style="height:200px"><canvas id="chartBDC"></canvas></div>
       </div>
     </div>
 
-    <!-- heatmap removed -->
-
-    <div class="waterfall-section" style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:24px">
+    <div class="waterfall-section" id="waterfallSection" style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:24px">
       <h3 style="font-size:14px;font-weight:600;margin-bottom:4px">Capital Structure Waterfall <span class="info-btn" data-info="waterfall">&#9432;</span></h3>
       <div class="info-popup" data-popup="waterfall" style="display:none;position:relative;margin-bottom:12px">
         <p><strong>How losses flow through the capital stack.</strong> Investments are split into encumbered (pledged to secured credit facilities) and unencumbered (free) pools.</p>
@@ -634,11 +641,11 @@
       <div id="waterfallTable"></div>
     </div>
 
-    <div class="stacks-section" style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:24px">
+    <div class="stacks-section" id="stacksSection" style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:24px">
       <div class="chart-header">
         <div>
-          <h3 style="margin-bottom:2px">Portfolio & Capital Structure Comparison</h3>
-          <p style="font-size:11px;color:#888;margin:0">All values shown as % of total. Click any bar for detailed breakdown.</p>
+          <h3 style="margin-bottom:2px" id="stacksTitle">Portfolio & Capital Structure Comparison</h3>
+          <p style="font-size:11px;color:#888;margin:0" id="stacksSubtitle">All values shown as % of total. Click any bar for detailed breakdown.</p>
         </div>
         <div class="unit-toggle" id="toggleCashOther">
           <button class="utog active" data-mode="include">Incl. Cash</button>
@@ -1098,41 +1105,109 @@ function computeStress() {
   return _computed;
 }
 
-// Fast path: only update summary cards (runs on every slider input frame)
-function recalculateFast() {
-  const c = computeStress();
-  const postFV = c.totalFV - c.totalLoss;
-  const lossPct = c.totalFV > 0 ? (c.totalLoss / c.totalFV) * 100 : 0;
+// Compute post-stress equity metrics for a single BDC
+function computeEquityImpact(ticker, portfolioLoss) {
+  const cs = DATA.capital_structure;
+  const cap = cs[ticker];
+  if (!cap || !cap.shares_outstanding) return null;
 
+  // Same waterfall logic as updateWaterfall
+  const totalInvFV = cap.total_investments || (cap.encumbered_fv + cap.unencumbered_fv);
+  const lossPct = totalInvFV > 0 ? portfolioLoss / totalInvFV : 0;
+  const encPost = Math.max(0, (cap.encumbered_fv || totalInvFV) * (1 - lossPct));
+  const unencPost = Math.max(0, (cap.unencumbered_fv || 0) * (1 - lossPct));
+
+  const secRecFromEnc = Math.min(cap.secured_debt, Math.max(0, encPost));
+  const secShortfall = Math.max(0, cap.secured_debt - encPost);
+  const excessFromEnc = Math.max(0, encPost - cap.secured_debt);
+  const generalPool = Math.max(0, unencPost + cap.non_investment_assets + excessFromEnc - cap.other_liabilities);
+  const totalClaims = secShortfall + cap.unsecured_debt;
+
+  let secFromGen = 0, unsecFromGen = 0;
+  if (totalClaims > 0 && generalPool > 0) {
+    if (generalPool >= totalClaims) { secFromGen = secShortfall; unsecFromGen = cap.unsecured_debt; }
+    else { const r = generalPool / totalClaims; secFromGen = secShortfall * r; unsecFromGen = cap.unsecured_debt * r; }
+  }
+
+  const equityResidual = Math.max(0, generalPool - secFromGen - unsecFromGen);
+  const navPost = equityResidual / cap.shares_outstanding;
+  const navOrig = cap.nav_per_share;
+  const navChange = navPost - navOrig;
+  const navChangePct = navOrig > 0 ? (navChange / navOrig) * 100 : 0;
+  const mktPrice = cap.market_price || null;
+
+  return { navPost, navOrig, navChange, navChangePct, equityResidual, mktPrice, shares: cap.shares_outstanding };
+}
+
+function updateEquityCards(c) {
   const cards = document.getElementById('summaryCards');
+  const allCards = document.getElementById('equityAllCards');
+
   if (selectedBDC !== 'ALL') {
     cards.style.display = '';
+    allCards.style.display = 'none';
+    const postFV = c.totalFV - c.totalLoss;
+    const lossPct = c.totalFV > 0 ? (c.totalLoss / c.totalFV) * 100 : 0;
     document.getElementById('cardFV').textContent = fmtDollar(c.totalFV);
     document.getElementById('cardLoss').textContent = fmtDollar(c.totalLoss);
     document.getElementById('cardLossPct').textContent = fmtPct(lossPct);
     document.getElementById('cardPostFV').textContent = fmtDollar(postFV);
+
+    const eq = computeEquityImpact(selectedBDC, c.totalLoss);
+    if (eq) {
+      document.getElementById('cardNavPost').textContent = '$' + eq.navPost.toFixed(2);
+      const deltaColor = eq.navChange >= 0 ? 'var(--green)' : 'var(--red)';
+      let deltaHtml = `<span style="color:${deltaColor}">${eq.navChange >= 0 ? '+' : ''}$${eq.navChange.toFixed(2)} (${eq.navChangePct >= 0 ? '+' : ''}${eq.navChangePct.toFixed(1)}%)</span>`;
+      deltaHtml += `<span style="color:#888;margin-left:6px">from $${eq.navOrig.toFixed(2)}</span>`;
+      if (eq.mktPrice) deltaHtml += `<br><span style="color:#888;font-size:10px">Mkt: $${eq.mktPrice.toFixed(2)}</span>`;
+      document.getElementById('cardNavDelta').innerHTML = deltaHtml;
+      document.getElementById('cardEquityLoss').textContent = fmtPct(eq.navChangePct);
+      document.getElementById('cardEquityLoss').style.color = eq.navChange >= 0 ? 'var(--green)' : 'var(--red)';
+    }
   } else {
     cards.style.display = 'none';
+    // ALL view: show compact equity table for all BDCs
+    allCards.style.display = '';
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;background:#fff;border:1px solid #ddd;border-radius:8px;overflow:hidden"><thead><tr style="background:#f0f0ec">';
+    const th = 'padding:6px 10px;border:1px solid #ddd;font-weight:600;color:#666;text-align:right';
+    html += `<th style="${th};text-align:left">BDC</th><th style="${th}">NAV/Share</th><th style="${th}">Post-Stress NAV</th><th style="${th}">NAV Change</th><th style="${th}">Equity Loss %</th><th style="${th}">Mkt Price</th><th style="${th}">Mkt vs Stressed NAV</th>`;
+    html += '</tr></thead><tbody>';
+    const td = 'padding:6px 10px;border:1px solid #ddd;text-align:right;color:#333';
+    for (const t of DATA.tickers) {
+      const eq = computeEquityImpact(t, c.lossByBDC[t] || 0);
+      if (!eq) continue;
+      const chgColor = eq.navChange >= 0 ? 'var(--green)' : 'var(--red)';
+      const mktVsNav = eq.mktPrice ? ((eq.mktPrice / eq.navPost - 1) * 100) : null;
+      const mktColor = mktVsNav !== null ? (mktVsNav >= 0 ? 'var(--green)' : 'var(--red)') : '#888';
+      html += '<tr>';
+      html += `<td style="${td};text-align:left;font-weight:600">${t}</td>`;
+      html += `<td style="${td}">$${eq.navOrig.toFixed(2)}</td>`;
+      html += `<td style="${td};font-weight:600">$${eq.navPost.toFixed(2)}</td>`;
+      html += `<td style="${td};color:${chgColor}">${eq.navChange >= 0 ? '+' : ''}$${eq.navChange.toFixed(2)}</td>`;
+      html += `<td style="${td};color:${chgColor}">${eq.navChangePct >= 0 ? '+' : ''}${eq.navChangePct.toFixed(1)}%</td>`;
+      html += `<td style="${td}">${eq.mktPrice ? '$' + eq.mktPrice.toFixed(2) : '--'}</td>`;
+      html += `<td style="${td};color:${mktColor}">${mktVsNav !== null ? (mktVsNav >= 0 ? '+' : '') + mktVsNav.toFixed(1) + '%' : '--'}</td>`;
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+    allCards.innerHTML = html;
   }
+}
+
+// Fast path: only update summary cards (runs on every slider input frame)
+function recalculateFast() {
+  const c = computeStress();
+  updateEquityCards(c);
 }
 
 // Full path: update everything including charts, heatmap, table
 function recalculate() {
   const c = computeStress();
-  const postFV = c.totalFV - c.totalLoss;
-  const lossPct = c.totalFV > 0 ? (c.totalLoss / c.totalFV) * 100 : 0;
+  updateEquityCards(c);
 
-  const cards = document.getElementById('summaryCards');
-  if (selectedBDC !== 'ALL') {
-    cards.style.display = '';
-    document.getElementById('cardFV').textContent = fmtDollar(c.totalFV);
-    document.getElementById('cardLoss').textContent = fmtDollar(c.totalLoss);
-    document.getElementById('cardLossPct').textContent = fmtPct(lossPct);
-    document.getElementById('cardPostFV').textContent = fmtDollar(postFV);
-  } else {
-    cards.style.display = 'none';
-  }
-
+  // Single-BDC: hide BDC comparison chart, show waterfall inline
+  const isSingle = selectedBDC !== 'ALL';
+  document.getElementById('bdcCompSection').style.display = isSingle ? 'none' : '';
 
   updateSeniorityChart(c.lossBySeniority, c.fvBySeniority);
   updateSectorChart(c.lossBySector, c.fvBySector);
@@ -1831,6 +1906,17 @@ function updateStacks() {
   }
 
   const senOrder = ['1L', 'Unitranche', 'Revolver', 'DDTL', 'ABF', '2L', 'Bond', 'Unsecured', 'Preferred', 'Equity', 'JV', 'CLO', 'Unknown'];
+
+  // Update titles
+  const titleEl = document.getElementById('stacksTitle');
+  const subEl = document.getElementById('stacksSubtitle');
+  if (selectedBDC !== 'ALL') {
+    titleEl.textContent = selectedBDC + ' — Portfolio & Capital Structure';
+    subEl.textContent = 'Bars scaled by dollar value. Click any bar for detailed breakdown.';
+  } else {
+    titleEl.textContent = 'Portfolio & Capital Structure Comparison';
+    subEl.textContent = 'All values shown as % of total. Click any bar for detailed breakdown.';
+  }
 
   // ─── SINGLE-BDC VIEW ───
   if (selectedBDC !== 'ALL') {
