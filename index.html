@@ -469,9 +469,11 @@
 
   .info-btn {
     cursor: pointer;
-    font-size: 16px;
-    color: #888;
+    font-size: 14px;
+    color: #aaa;
     user-select: none;
+    vertical-align: middle;
+    margin-left: 4px;
   }
   .info-btn:hover { color: #4A7FB5; }
   .info-popup {
@@ -530,7 +532,12 @@
 
     <div class="controls-panel">
       <div class="control-box">
-        <h3>Seniority Total Loss Rates</h3>
+        <h3>Seniority Total Loss Rates <span class="info-btn" data-info="lossModel">&#9432;</span></h3>
+        <div class="info-popup" data-popup="lossModel" style="display:none;position:relative;margin-bottom:8px">
+          <p><strong>Two independent risk dimensions.</strong> Seniority rates reflect capital stack position (structural protection). Sector rates reflect cyclical/macro exposure. They combine multiplicatively:</p>
+          <p style="font-family:monospace;background:#f5f5f0;padding:6px 10px;border-radius:4px">Combined = 1 − (1 − seniority) × (1 − sector)</p>
+          <p>Example: 5% seniority + 10% sector = 14.5% combined loss — not 15%. This avoids double-counting since the two dimensions are independent.</p>
+        </div>
         <p style="font-size:11px;color:#888;margin:-4px 0 8px">Total Loss Rate = Default Rate &times; Loss Given Default</p>
         <div class="quick-buttons">
           <button class="quick-btn" onclick="quickSeniority('zero-equity')">Zero Equity</button>
@@ -554,11 +561,11 @@
     <div class="control-box" style="margin-bottom:20px;display:flex;align-items:center;gap:16px;padding:12px 16px">
       <div style="display:flex;align-items:center;gap:8px">
         <label style="font-size:13px;font-weight:600;color:#333;white-space:nowrap">Repricing Window</label>
-        <span class="info-btn" id="maturityInfoBtn" title="Click for details">&#9432;</span>
+        <span class="info-btn" data-info="maturity" title="Click for details">&#9432;</span>
       </div>
       <input type="number" min="0" max="10" step="any" value="0" id="maturityInput" style="width:70px;padding:5px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;text-align:right">
       <span style="font-size:13px;color:#666">years</span>
-      <div class="info-popup" id="maturityInfo" style="display:none">
+      <div class="info-popup" data-popup="maturity" style="display:none">
         <p>Loans maturing <strong>within</strong> the repricing window are excluded from stress losses and treated as cash recovered at par.</p>
         <p>The assumption: maturing loans get repaid and redeployed at efficiently priced terms given current market awareness. Only loans maturing <strong>after</strong> the window are subject to the modeled loss rates.</p>
         <p>Positions without a maturity date (equity, preferred, JV) are always fully exposed regardless of this setting.</p>
@@ -586,7 +593,12 @@
     </div>
 
     <div class="card-row" id="summaryCards" style="display:none">
-      <div class="card"><div class="card-label">Portfolio FV</div><div class="card-value" id="cardFV">--</div></div>
+      <div class="card" style="position:relative"><div class="card-label">Portfolio FV <span class="info-btn" data-info="portfolioFV">&#9432;</span></div><div class="card-value" id="cardFV">--</div>
+        <div class="info-popup" data-popup="portfolioFV" style="display:none;left:0;top:100%;margin-top:4px">
+          <p><strong>Net funded fair value.</strong> All portfolio values are net of unfunded commitments (undrawn revolvers, delayed draw term loans, equity commitments) and marked to current fair value.</p>
+          <p>This matches each BDC's "Total Investments at Fair Value" as reported in their SEC filings, after subtracting unfunded commitment line items from the Schedule of Investments.</p>
+        </div>
+      </div>
       <div class="card"><div class="card-label">Total Loss</div><div class="card-value loss" id="cardLoss">--</div></div>
       <div class="card"><div class="card-label">Loss %</div><div class="card-value loss" id="cardLossPct">--</div></div>
       <div class="card"><div class="card-label">Post-Stress FV</div><div class="card-value" id="cardPostFV">--</div></div>
@@ -612,8 +624,13 @@
     <!-- heatmap removed -->
 
     <div class="waterfall-section" style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:24px">
-      <h3 style="font-size:14px;font-weight:600;margin-bottom:4px">Capital Structure Waterfall</h3>
-      <p style="font-size:11px;color:#888;margin-bottom:16px"><em>Assumptions: Secured lenders have first claim on encumbered (ringfenced) assets only. If encumbered assets exceed secured debt, the excess flows to the general pool. If encumbered assets are insufficient, the secured shortfall becomes a pari passu claim alongside unsecured noteholders against the general (unencumbered) pool. Losses applied proportionally across both pools. Encumbered/unencumbered splits from iXBRL footnote data.</em></p>
+      <h3 style="font-size:14px;font-weight:600;margin-bottom:4px">Capital Structure Waterfall <span class="info-btn" data-info="waterfall">&#9432;</span></h3>
+      <div class="info-popup" data-popup="waterfall" style="display:none;position:relative;margin-bottom:12px">
+        <p><strong>How losses flow through the capital stack.</strong> Investments are split into encumbered (pledged to secured credit facilities) and unencumbered (free) pools.</p>
+        <p>Secured lenders claim encumbered assets first. Excess encumbered assets flow to the general pool. If encumbered assets fall short, the secured shortfall becomes pari passu with unsecured noteholders against unencumbered assets.</p>
+        <p>Unsecured recovery shows cents on the dollar available to unsecured bondholders after all senior claims are satisfied.</p>
+      </div>
+      <p style="font-size:11px;color:#888;margin-bottom:16px"><em>Encumbered/unencumbered splits from iXBRL footnote data. Losses applied proportionally across both pools.</em></p>
       <div id="waterfallTable"></div>
     </div>
 
@@ -629,19 +646,25 @@
         </div>
       </div>
       <div id="stacksContainer" style="margin-top:12px"></div>
-      <div id="stacksPopup" style="display:none;position:fixed;z-index:300;background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-width:360px;font-size:12px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <strong id="popupTitle" style="color:#333"></strong>
-          <span onclick="document.getElementById('stacksPopup').style.display='none'" style="cursor:pointer;color:#888;font-size:16px">&times;</span>
+      <div id="barModal" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.45);justify-content:center;align-items:center">
+        <div style="background:#fff;border-radius:10px;padding:24px 28px;box-shadow:0 12px 40px rgba(0,0,0,0.2);max-width:700px;width:90%;max-height:90vh;overflow-y:auto;position:relative">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <strong id="barModalTitle" style="color:#333;font-size:14px"></strong>
+            <span id="barModalClose" style="cursor:pointer;color:#888;font-size:20px;line-height:1">&times;</span>
+          </div>
+          <div id="barModalBody"></div>
         </div>
-        <div id="popupBody"></div>
       </div>
     </div>
   </div>
 
   <!-- PIK & NON-ACCRUAL TAB -->
   <div class="view-panel" id="panel-pik">
-    <h2 class="section-title">PIK Exposure</h2>
+    <h2 class="section-title" style="position:relative">PIK Exposure <span class="info-btn" data-info="pik">&#9432;</span></h2>
+    <div class="info-popup" data-popup="pik" style="display:none;position:relative;margin:-8px 0 12px">
+      <p><strong>Payment-in-Kind (PIK).</strong> Instead of paying cash interest, the borrower adds accrued interest to the loan principal. PIK increases exposure over time without generating cash flow.</p>
+      <p>High PIK concentration signals credit stress — borrowers that can't service cash interest. PIK positions also grow the portfolio's funded exposure, increasing loss severity in a downturn.</p>
+    </div>
     <div class="card-row" id="pikCards"></div>
     <div class="toggle-group" id="pikToggle">
       <button class="toggle-btn active" data-mode="portfolio">By Portfolio</button>
@@ -651,7 +674,11 @@
       <div class="chart-wrap" style="height:300px"><canvas id="chartPIK"></canvas></div>
     </div>
 
-    <h2 class="section-title">Non-Accrual Exposure</h2>
+    <h2 class="section-title" style="position:relative">Non-Accrual Exposure <span class="info-btn" data-info="nonAccrual">&#9432;</span></h2>
+    <div class="info-popup" data-popup="nonAccrual" style="display:none;position:relative;margin:-8px 0 12px">
+      <p><strong>Non-accrual</strong> means the BDC has stopped recognizing interest income on the loan, typically because the borrower has missed payments or is expected to default.</p>
+      <p>Non-accrual status is disclosed via footnotes in the Schedule of Investments. These positions are already marked down (fair value &lt; cost) and represent the portfolio's most distressed credits.</p>
+    </div>
     <div class="card-row" id="naCards"></div>
     <div class="toggle-group" id="naToggle">
       <button class="toggle-btn active" data-mode="portfolio">By Portfolio</button>
@@ -705,7 +732,11 @@
         <div class="chart-wrap" style="height:300px"><canvas id="chartMaturityWall"></canvas></div>
       </div>
       <div class="chart-box">
-        <h3>Asset Coverage Ratio (Post-Stress)</h3>
+        <h3>Asset Coverage Ratio (Post-Stress) <span class="info-btn" data-info="acr">&#9432;</span></h3>
+        <div class="info-popup" data-popup="acr" style="display:none;position:relative;margin-bottom:8px">
+          <p><strong>Asset coverage ratio</strong> = total assets / total borrowings. BDCs must maintain at least 150% by regulation (200% prior to 2019). Most credit facilities impose 200% covenants.</p>
+          <p>Falling below 150% triggers regulatory action. Below 200% may trigger covenant defaults, accelerating debt repayment and potentially forcing asset sales at distressed prices.</p>
+        </div>
         <p style="font-size:10px;color:#888;margin:-8px 0 8px">Red line = 150% regulatory minimum. Amber = 200% typical covenant.</p>
         <div class="chart-wrap" style="height:300px"><canvas id="chartCoverage"></canvas></div>
       </div>
@@ -718,7 +749,11 @@
     </div>
 
     <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:24px">
-      <h3 style="font-size:14px;font-weight:600;margin-bottom:4px">Unfunded Commitment Stress</h3>
+      <h3 style="font-size:14px;font-weight:600;margin-bottom:4px">Unfunded Commitment Stress <span class="info-btn" data-info="unfunded">&#9432;</span></h3>
+      <div class="info-popup" data-popup="unfunded" style="display:none;position:relative;margin-bottom:8px">
+        <p><strong>Unfunded commitments</strong> are contractual obligations to lend additional capital (revolvers, delayed draw term loans, equity commitments) that borrowers haven't drawn yet.</p>
+        <p>In a downturn, distressed borrowers draw down revolvers and delayed draws, forcing the BDC to fund at par into a declining portfolio. The "draw rate" models what percentage of unfunded commitments get called.</p>
+      </div>
       <div id="liqUnfundedTable"></div>
     </div>
   </div>
@@ -1742,13 +1777,13 @@ function updateStacks() {
     return '$' + (abs / 1e6).toFixed(0) + 'M';
   }
 
-  function buildBar(segments, title, scaleTotal) {
+  function buildBar(segments, title, scaleTotal, group) {
     // total = sum of segments (for % labels — always adds to 100%)
     // scaleTotal = reference for bar height (if provided, bar may be shorter than full height)
     const total = segments.reduce((s, seg) => s + seg.value, 0);
     const scale = scaleTotal || total; // height denominator
     const barId = _stackBarId++;
-    _stackBarData[barId] = {title, segments, total};
+    _stackBarData[barId] = {title, segments, total, scaleTotal: scale, group};
     let html = `<div class="stacked-bar" data-barid="${barId}" style="cursor:pointer">`;
     for (const seg of segments) {
       const pctLabel = total > 0 ? (seg.value / total) * 100 : 0; // % of surviving portfolio
@@ -1802,7 +1837,7 @@ function updateStacks() {
     }
     addCash(preSen, t);
     const preTotal1 = preSen.reduce((s, seg) => s + seg.value, 0);
-    html += '<div class="bdc-col">' + buildBar(preSen, t + ' Pre-Stress by Seniority') + '</div>';
+    html += '<div class="bdc-col">' + buildBar(preSen, t + ' Pre-Stress by Seniority', null, t + '_sen') + '</div>';
 
     // Post — scale height against pre-stress total so bar shrinks visually
     const loss = c.lossByBDC[t] || 0;
@@ -1815,7 +1850,7 @@ function updateStacks() {
       if (postFV > 0) postSen.push({label: s, value: postFV, color: SENIORITY_COLORS[s] || '#999'});
     }
     addCash(postSen, t);
-    html += '<div class="bdc-col">' + buildBar(postSen, t + ' Post-Stress by Seniority', preTotal1) + '</div>';
+    html += '<div class="bdc-col">' + buildBar(postSen, t + ' Post-Stress by Seniority', preTotal1, t + '_sen') + '</div>';
   }
 
   // ── Assets by Sector ──
@@ -1831,7 +1866,7 @@ function updateStacks() {
     }
     addCash(preSec, t);
     const preTotal2 = preSec.reduce((s, seg) => s + seg.value, 0);
-    html += '<div class="bdc-col">' + buildBar(preSec, t + ' Pre-Stress by Sector') + '</div>';
+    html += '<div class="bdc-col">' + buildBar(preSec, t + ' Pre-Stress by Sector', null, t + '_sec') + '</div>';
 
     // Post — scale height against pre-stress total
     const postSec = [];
@@ -1851,7 +1886,7 @@ function updateStacks() {
       if (postFV > 0) postSec.push({label: sec.replace(' & ', '/'), value: postFV, color: SECTOR_COLORS[sec] || '#999'});
     }
     addCash(postSec, t);
-    html += '<div class="bdc-col">' + buildBar(postSec, t + ' Post-Stress by Sector', preTotal2) + '</div>';
+    html += '<div class="bdc-col">' + buildBar(postSec, t + ' Post-Stress by Sector', preTotal2, t + '_sec') + '</div>';
   }
 
   // ── Capital Stack ──
@@ -1871,35 +1906,86 @@ function updateStacks() {
     if (cap.unsecured_debt > 0) segs.push({label: 'Sr Unsecured', value: cap.unsecured_debt, color: '#D4A76A'});
     if (cap.other_liabilities > 0) segs.push({label: 'Other Liab', value: cap.other_liabilities, color: '#999'});
     if (cap.equity > 0) segs.push({label: 'Equity/NAV', value: cap.equity, color: '#7CAE7A'});
-    html += '<div class="bdc-col" style="grid-column:span 2">' + buildBar(segs, t + ' Capital Stack') + '</div>';
+    html += '<div class="bdc-col" style="grid-column:span 2">' + buildBar(segs, t + ' Capital Stack', null, t + '_cap') + '</div>';
   }
 
   html += '</div>';
   container.innerHTML = html;
 
-  // Attach click handlers for popup
+  // Attach click handlers for expanded modal
   container.querySelectorAll('.stacked-bar').forEach(bar => {
     bar.addEventListener('click', e => {
       const barId = bar.dataset.barid;
       const data = _stackBarData[barId];
       if (!data) return;
-      const popup = document.getElementById('stacksPopup');
-      const titleEl = document.getElementById('popupTitle');
-      const bodyEl = document.getElementById('popupBody');
-      titleEl.textContent = data.title;
-      let tbl = '<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:4px 8px;border-bottom:1px solid #ddd;color:#666">Segment</th><th style="text-align:right;padding:4px 8px;border-bottom:1px solid #ddd;color:#666">$</th><th style="text-align:right;padding:4px 8px;border-bottom:1px solid #ddd;color:#666">%</th></tr></thead><tbody>';
-      for (const seg of data.segments) {
-        const pct = data.total > 0 ? (seg.value / data.total * 100) : 0;
-        tbl += `<tr><td style="padding:3px 8px;border-bottom:1px solid #eee"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${seg.color};margin-right:6px;vertical-align:middle"></span>${seg.label}</td><td style="text-align:right;padding:3px 8px;border-bottom:1px solid #eee">${fmtDollar(seg.value)}</td><td style="text-align:right;padding:3px 8px;border-bottom:1px solid #eee">${pct.toFixed(1)}%</td></tr>`;
+
+      // Gather all bars in the same group
+      const groupBars = [];
+      if (data.group) {
+        for (const [id, d] of Object.entries(_stackBarData)) {
+          if (d.group === data.group) groupBars.push(d);
+        }
       }
-      tbl += `<tr style="font-weight:600"><td style="padding:4px 8px">Total</td><td style="text-align:right;padding:4px 8px">${fmtDollar(data.total)}</td><td style="text-align:right;padding:4px 8px">100.0%</td></tr>`;
-      tbl += '</tbody></table>';
-      bodyEl.innerHTML = tbl;
-      popup.style.display = 'block';
-      // Position near click
-      const rect = bar.getBoundingClientRect();
-      popup.style.left = Math.min(rect.right + 8, window.innerWidth - 380) + 'px';
-      popup.style.top = Math.max(8, rect.top - 40 + window.scrollY) + 'px';
+      if (groupBars.length === 0) groupBars.push(data);
+
+      // Derive a group title (e.g. "ARCC — By Seniority")
+      const first = groupBars[0].title;
+      const ticker = first.split(' ')[0];
+      let section = 'Details';
+      if (first.includes('Seniority')) section = 'By Seniority';
+      else if (first.includes('Sector')) section = 'By Sector';
+      else if (first.includes('Capital')) section = 'Capital Stack';
+
+      const modal = document.getElementById('barModal');
+      const titleEl = document.getElementById('barModalTitle');
+      const bodyEl = document.getElementById('barModalBody');
+      titleEl.textContent = ticker + ' — ' + section;
+
+      // Find the max scaleTotal across the group so bars share a consistent height scale
+      const maxScale = Math.max(...groupBars.map(b => b.scaleTotal));
+
+      // Build enlarged bars side by side
+      let html = '<div style="display:flex;gap:32px;justify-content:center;align-items:flex-end">';
+      for (const b of groupBars) {
+        const isPost = b.title.includes('Post');
+        const subLabel = isPost ? 'Post-Stress' : (groupBars.length > 1 ? 'Pre-Stress' : '');
+        html += '<div style="flex:1;max-width:240px;text-align:center">';
+        if (subLabel) html += `<div style="font-size:11px;color:#888;margin-bottom:6px">${subLabel}</div>`;
+        // Enlarged bar
+        html += '<div style="position:relative;height:350px;width:100%;display:flex;flex-direction:column-reverse;border-radius:4px;overflow:hidden;border:1px solid #ddd">';
+        for (const seg of b.segments) {
+          const pctLabel = b.total > 0 ? (seg.value / b.total) * 100 : 0;
+          const pctHeight = maxScale > 0 ? (seg.value / maxScale) * 100 : 0;
+          if (pctHeight < 0.2) continue;
+          const label = pctLabel > 3 ? `<span style="white-space:nowrap">${seg.label} ${pctLabel.toFixed(0)}%</span>` : '';
+          html += `<div style="height:${pctHeight}%;background:${seg.color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;text-shadow:0 0 3px rgba(0,0,0,0.3);overflow:hidden;min-height:1px" title="${seg.label}: ${fmtDollar(seg.value)} (${pctLabel.toFixed(1)}%)">${label}</div>`;
+        }
+        html += '</div>';
+        html += `<div style="font-size:12px;font-weight:600;color:#555;margin-top:6px">${fmtDollar(b.total)}</div>`;
+        html += '</div>';
+      }
+      html += '</div>';
+
+      // Segment tables side by side
+      html += '<div style="display:flex;gap:24px;margin-top:20px">';
+      for (const b of groupBars) {
+        const isPost = b.title.includes('Post');
+        const tblLabel = isPost ? 'Post-Stress' : (groupBars.length > 1 ? 'Pre-Stress' : b.title);
+        html += '<div style="flex:1;min-width:0">';
+        html += `<div style="font-weight:600;color:#333;font-size:12px;margin-bottom:6px">${tblLabel}</div>`;
+        html += '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:4px 8px;border-bottom:1px solid #ddd;color:#666">Segment</th><th style="text-align:right;padding:4px 8px;border-bottom:1px solid #ddd;color:#666">$</th><th style="text-align:right;padding:4px 8px;border-bottom:1px solid #ddd;color:#666">%</th></tr></thead><tbody>';
+        for (const seg of b.segments) {
+          const pct = b.total > 0 ? (seg.value / b.total * 100) : 0;
+          html += `<tr><td style="padding:3px 8px;border-bottom:1px solid #eee"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${seg.color};margin-right:6px;vertical-align:middle"></span>${seg.label}</td><td style="text-align:right;padding:3px 8px;border-bottom:1px solid #eee">${fmtDollar(seg.value)}</td><td style="text-align:right;padding:3px 8px;border-bottom:1px solid #eee">${pct.toFixed(1)}%</td></tr>`;
+        }
+        html += `<tr style="font-weight:600"><td style="padding:4px 8px">Total</td><td style="text-align:right;padding:4px 8px">${fmtDollar(b.total)}</td><td style="text-align:right;padding:4px 8px">100.0%</td></tr>`;
+        html += '</tbody></table>';
+        html += '</div>';
+      }
+      html += '</div>';
+
+      bodyEl.innerHTML = html;
+      modal.style.display = 'flex';
     });
   });
 }
@@ -2194,12 +2280,12 @@ document.getElementById('toggleCashOther').addEventListener('click', e => {
   updateStacks();
 });
 
-// Dismiss popup on click outside
-document.addEventListener('click', e => {
-  const popup = document.getElementById('stacksPopup');
-  if (popup && popup.style.display !== 'none' && !e.target.closest('#stacksPopup') && !e.target.closest('.stacked-bar')) {
-    popup.style.display = 'none';
-  }
+// Dismiss bar modal
+document.getElementById('barModalClose').addEventListener('click', () => {
+  document.getElementById('barModal').style.display = 'none';
+});
+document.getElementById('barModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
 });
 
 document.getElementById('pikToggle').addEventListener('click', e => {
@@ -2229,14 +2315,23 @@ document.getElementById('maturityInput').addEventListener('change', () => {
   recalculate();
 });
 
-document.getElementById('maturityInfoBtn').addEventListener('click', () => {
-  const popup = document.getElementById('maturityInfo');
-  popup.style.display = popup.style.display === 'none' ? 'block' : 'none';
-});
-
+// Generic info-button system
 document.addEventListener('click', e => {
-  if (!e.target.closest('#maturityInfoBtn') && !e.target.closest('#maturityInfo')) {
-    document.getElementById('maturityInfo').style.display = 'none';
+  const btn = e.target.closest('.info-btn[data-info]');
+  if (btn) {
+    const key = btn.dataset.info;
+    const popup = document.querySelector(`.info-popup[data-popup="${key}"]`);
+    if (popup) {
+      const isVisible = popup.style.display !== 'none';
+      // Close all popups first
+      document.querySelectorAll('.info-popup').forEach(p => p.style.display = 'none');
+      if (!isVisible) popup.style.display = 'block';
+    }
+    return;
+  }
+  // Close popups when clicking outside
+  if (!e.target.closest('.info-popup')) {
+    document.querySelectorAll('.info-popup').forEach(p => p.style.display = 'none');
   }
 });
 
