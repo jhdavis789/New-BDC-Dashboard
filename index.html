@@ -585,7 +585,7 @@
       </div>
     </div>
 
-    <div class="card-row" id="summaryCards">
+    <div class="card-row" id="summaryCards" style="display:none">
       <div class="card"><div class="card-label">Portfolio FV</div><div class="card-value" id="cardFV">--</div></div>
       <div class="card"><div class="card-label">Total Loss</div><div class="card-value loss" id="cardLoss">--</div></div>
       <div class="card"><div class="card-label">Loss %</div><div class="card-value loss" id="cardLossPct">--</div></div>
@@ -6653,10 +6653,16 @@ function recalculateFast() {
   const postFV = c.totalFV - c.totalLoss;
   const lossPct = c.totalFV > 0 ? (c.totalLoss / c.totalFV) * 100 : 0;
 
-  document.getElementById('cardFV').textContent = fmtDollar(c.totalFV);
-  document.getElementById('cardLoss').textContent = fmtDollar(c.totalLoss);
-  document.getElementById('cardLossPct').textContent = fmtPct(lossPct);
-  document.getElementById('cardPostFV').textContent = fmtDollar(postFV);
+  const cards = document.getElementById('summaryCards');
+  if (selectedBDC !== 'ALL') {
+    cards.style.display = '';
+    document.getElementById('cardFV').textContent = fmtDollar(c.totalFV);
+    document.getElementById('cardLoss').textContent = fmtDollar(c.totalLoss);
+    document.getElementById('cardLossPct').textContent = fmtPct(lossPct);
+    document.getElementById('cardPostFV').textContent = fmtDollar(postFV);
+  } else {
+    cards.style.display = 'none';
+  }
 }
 
 // Full path: update everything including charts, heatmap, table
@@ -6665,10 +6671,16 @@ function recalculate() {
   const postFV = c.totalFV - c.totalLoss;
   const lossPct = c.totalFV > 0 ? (c.totalLoss / c.totalFV) * 100 : 0;
 
-  document.getElementById('cardFV').textContent = fmtDollar(c.totalFV);
-  document.getElementById('cardLoss').textContent = fmtDollar(c.totalLoss);
-  document.getElementById('cardLossPct').textContent = fmtPct(lossPct);
-  document.getElementById('cardPostFV').textContent = fmtDollar(postFV);
+  const cards = document.getElementById('summaryCards');
+  if (selectedBDC !== 'ALL') {
+    cards.style.display = '';
+    document.getElementById('cardFV').textContent = fmtDollar(c.totalFV);
+    document.getElementById('cardLoss').textContent = fmtDollar(c.totalLoss);
+    document.getElementById('cardLossPct').textContent = fmtPct(lossPct);
+    document.getElementById('cardPostFV').textContent = fmtDollar(postFV);
+  } else {
+    cards.style.display = 'none';
+  }
 
 
   updateSeniorityChart(c.lossBySeniority, c.fvBySeniority);
