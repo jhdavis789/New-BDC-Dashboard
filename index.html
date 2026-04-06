@@ -230,7 +230,7 @@
   /* Stacked bar visualization */
   .stacks-grid {
     display: grid;
-    grid-template-columns: 140px repeat(5, 1fr);
+    /* columns set dynamically via inline style */
     gap: 0;
     font-size: 11px;
   }
@@ -7352,59 +7352,68 @@ function updateStacks() {
   }
 
   const senOrder = ['1L', 'Unitranche', 'Revolver', 'DDTL', 'ABF', '2L', 'Bond', 'Unsecured', 'Preferred', 'Equity', 'JV', 'CLO', 'Unknown'];
+  const n = tickers.length; // 5
 
-  let html = '<div class="stacks-grid">';
+  // Grid: label column + 2 columns per BDC (pre + post), so 1 + 10 = 11 columns
+  let html = `<div class="stacks-grid" style="grid-template-columns: 100px repeat(${n}, 1fr 1fr)">`;
+
+  // Header row: BDC names spanning 2 cols each
   html += '<div class="row-label"></div>';
-  for (const t of tickers) html += `<div class="bdc-col bdc-header">${t}</div>`;
+  for (const t of tickers) {
+    html += `<div class="bdc-col bdc-header" style="grid-column:span 2">${t}</div>`;
+  }
+
+  // Sub-header: Pre / Post labels
+  html += '<div class="row-label"></div>';
+  for (let i = 0; i < n; i++) {
+    html += '<div class="bdc-col" style="font-size:10px;color:#888;padding:2px 4px;border-bottom:1px solid #ddd">Pre</div>';
+    html += '<div class="bdc-col" style="font-size:10px;color:#888;padding:2px 4px;border-bottom:1px solid #ddd">Post</div>';
+  }
 
   // ── Assets by Seniority ──
   html += '<div class="section-divider">Assets by Seniority</div>';
-  html += '<div class="row-label">Pre-Stress</div>';
+  html += '<div class="row-label" style="font-size:11px">By Lien</div>';
   for (const t of tickers) {
+    // Pre
     const p = DATA.portfolios[t];
-    const segs = [];
+    const preSen = [];
     for (const s of senOrder) {
       const fv = p.by_seniority[s] ? p.by_seniority[s].fair_value : 0;
-      if (fv > 0) segs.push({label: s, value: fv, color: SENIORITY_COLORS[s] || '#999'});
+      if (fv > 0) preSen.push({label: s, value: fv, color: SENIORITY_COLORS[s] || '#999'});
     }
-    addCash(segs, t);
-    html += '<div class="bdc-col">' + buildBar(segs, t + ' Pre-Stress by Seniority') + '</div>';
-  }
+    addCash(preSen, t);
+    html += '<div class="bdc-col">' + buildBar(preSen, t + ' Pre-Stress by Seniority') + '</div>';
 
-  html += '<div class="row-label">Post-Stress</div>';
-  for (const t of tickers) {
-    const p = DATA.portfolios[t];
+    // Post
     const loss = c.lossByBDC[t] || 0;
     const totalFV = p.total_fv;
     const lossPct = totalFV > 0 ? loss / totalFV : 0;
-    const segs = [];
+    const postSen = [];
     for (const s of senOrder) {
       const origFV = p.by_seniority[s] ? p.by_seniority[s].fair_value : 0;
       const postFV = origFV * (1 - lossPct);
-      if (postFV > 0) segs.push({label: s, value: postFV, color: SENIORITY_COLORS[s] || '#999'});
+      if (postFV > 0) postSen.push({label: s, value: postFV, color: SENIORITY_COLORS[s] || '#999'});
     }
-    addCash(segs, t);
-    html += '<div class="bdc-col">' + buildBar(segs, t + ' Post-Stress by Seniority') + '</div>';
+    addCash(postSen, t);
+    html += '<div class="bdc-col">' + buildBar(postSen, t + ' Post-Stress by Seniority') + '</div>';
   }
 
   // ── Assets by Sector ──
   html += '<div class="section-divider">Assets by Sector</div>';
-  html += '<div class="row-label">Pre-Stress</div>';
+  html += '<div class="row-label" style="font-size:11px">By Sector</div>';
   for (const t of tickers) {
+    // Pre
     const p = DATA.portfolios[t];
-    const segs = [];
+    const preSec = [];
     for (const s of DATA.sectors) {
       const fv = p.by_sector[s] ? p.by_sector[s].fair_value : 0;
-      if (fv > 0) segs.push({label: s.replace(' & ', '/'), value: fv, color: SECTOR_COLORS[s] || '#999'});
+      if (fv > 0) preSec.push({label: s.replace(' & ', '/'), value: fv, color: SECTOR_COLORS[s] || '#999'});
     }
-    addCash(segs, t);
-    html += '<div class="bdc-col">' + buildBar(segs, t + ' Pre-Stress by Sector') + '</div>';
-  }
+    addCash(preSec, t);
+    html += '<div class="bdc-col">' + buildBar(preSec, t + ' Pre-Stress by Sector') + '</div>';
 
-  html += '<div class="row-label">Post-Stress</div>';
-  for (const t of tickers) {
-    const p = DATA.portfolios[t];
-    const segs = [];
+    // Post
+    const postSec = [];
     for (const sec of DATA.sectors) {
       const origFV = p.by_sector[sec] ? p.by_sector[sec].fair_value : 0;
       if (origFV <= 0) continue;
@@ -7418,18 +7427,18 @@ function updateStacks() {
         }
       }
       const postFV = origFV - secLoss;
-      if (postFV > 0) segs.push({label: sec.replace(' & ', '/'), value: postFV, color: SECTOR_COLORS[sec] || '#999'});
+      if (postFV > 0) postSec.push({label: sec.replace(' & ', '/'), value: postFV, color: SECTOR_COLORS[sec] || '#999'});
     }
-    addCash(segs, t);
-    html += '<div class="bdc-col">' + buildBar(segs, t + ' Post-Stress by Sector') + '</div>';
+    addCash(postSec, t);
+    html += '<div class="bdc-col">' + buildBar(postSec, t + ' Post-Stress by Sector') + '</div>';
   }
 
   // ── Capital Stack ──
   html += '<div class="section-divider">Capital Stack (Liabilities & Equity)</div>';
-  html += '<div class="row-label">Current</div>';
+  html += '<div class="row-label" style="font-size:11px">Current</div>';
   for (const t of tickers) {
     const cap = cs[t];
-    if (!cap) { html += '<div class="bdc-col">--</div>'; continue; }
+    if (!cap) { html += '<div class="bdc-col" style="grid-column:span 2">--</div>'; continue; }
     const segs = [];
     let cloAmt = 0, creditAmt = 0;
     for (const inst of cap.secured_instruments || []) {
@@ -7441,7 +7450,7 @@ function updateStacks() {
     if (cap.unsecured_debt > 0) segs.push({label: 'Sr Unsecured', value: cap.unsecured_debt, color: '#D4A76A'});
     if (cap.other_liabilities > 0) segs.push({label: 'Other Liab', value: cap.other_liabilities, color: '#999'});
     if (cap.equity > 0) segs.push({label: 'Equity/NAV', value: cap.equity, color: '#7CAE7A'});
-    html += '<div class="bdc-col">' + buildBar(segs, t + ' Capital Stack') + '</div>';
+    html += '<div class="bdc-col" style="grid-column:span 2">' + buildBar(segs, t + ' Capital Stack') + '</div>';
   }
 
   html += '</div>';
