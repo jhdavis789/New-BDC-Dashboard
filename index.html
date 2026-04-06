@@ -7216,7 +7216,7 @@ function updateWaterfall(lossByBDC) {
   html += `<th style="${th}">Post-Stress Assets</th>`;
   html += `<th style="${th}">Unencumbered Assets</th>`;
   html += `<th style="${th}">Secured Debt (Recovery)</th>`;
-  html += `<th style="${th}">Unsecured Recovery</th>`;
+  html += `<th style="${th}">Unsecured Debt (Recovery)</th>`;
   html += `<th style="${th}">Equity Residual</th>`;
   html += `<th style="${th}">Post-Stress NAV/Share</th>`;
   html += '</tr></thead><tbody>';
@@ -7295,7 +7295,7 @@ function updateWaterfall(lossByBDC) {
     html += `<td style="${td}">${fmtW(postStressAssets)}</td>`;
     html += `<td style="${td}">${fmtW(unencumberedPost)}<span style="font-size:10px;color:#888"> (${unencOrigPct.toFixed(0)}% orig)</span></td>`;
     html += `<td style="${td};color:${securedColor}">${fmtW(cap.secured_debt)} (${securedPct.toFixed(0)}%)</td>`;
-    html += `<td style="${td}"><span style="font-size:16px;font-weight:700;color:${unsecuredColor}">${unsecuredCents.toFixed(0)}&cent;</span></td>`;
+    html += `<td style="${td};color:${unsecuredColor}">${fmtW(cap.unsecured_debt)} (${unsecuredCents.toFixed(0)}%)</td>`;
     html += `<td style="${td}">${fmtW(equityResidual)}</td>`;
     html += `<td style="${td}">$${navPost.toFixed(2)}<span style="font-size:10px;color:#888"> vs $${navOrig.toFixed(2)}${navChangeStr}</span></td>`;
     html += '</tr>';
@@ -7326,17 +7326,20 @@ function updateStacks() {
     return '$' + (abs / 1e6).toFixed(0) + 'M';
   }
 
-  function buildBar(segments, title) {
-    // Use sum of segments as denominator so % always adds to 100
+  function buildBar(segments, title, scaleTotal) {
+    // total = sum of segments (for % labels — always adds to 100%)
+    // scaleTotal = reference for bar height (if provided, bar may be shorter than full height)
     const total = segments.reduce((s, seg) => s + seg.value, 0);
+    const scale = scaleTotal || total; // height denominator
     const barId = _stackBarId++;
     _stackBarData[barId] = {title, segments, total};
     let html = `<div class="stacked-bar" data-barid="${barId}" style="cursor:pointer">`;
     for (const seg of segments) {
-      const pct = total > 0 ? (seg.value / total) * 100 : 0;
-      if (pct < 0.3) continue;
-      const label = pct > 5 ? `<span>${seg.label} ${pct.toFixed(0)}%</span>` : '';
-      html += `<div class="bar-seg" style="height:${pct}%;background:${seg.color}" title="${seg.label}: ${fmtS(seg.value)} (${pct.toFixed(1)}%)">${label}</div>`;
+      const pctLabel = total > 0 ? (seg.value / total) * 100 : 0; // % of surviving portfolio
+      const pctHeight = scale > 0 ? (seg.value / scale) * 100 : 0; // % of pre-stress scale
+      if (pctHeight < 0.2) continue;
+      const label = pctLabel > 5 ? `<span>${seg.label} ${pctLabel.toFixed(0)}%</span>` : '';
+      html += `<div class="bar-seg" style="height:${pctHeight}%;background:${seg.color}" title="${seg.label}: ${fmtS(seg.value)} (${pctLabel.toFixed(1)}% of portfolio)">${label}</div>`;
     }
     html += '</div>';
     html += `<div class="bar-total">${fmtS(total)}</div>`;
@@ -7382,9 +7385,10 @@ function updateStacks() {
       if (fv > 0) preSen.push({label: s, value: fv, color: SENIORITY_COLORS[s] || '#999'});
     }
     addCash(preSen, t);
+    const preTotal1 = preSen.reduce((s, seg) => s + seg.value, 0);
     html += '<div class="bdc-col">' + buildBar(preSen, t + ' Pre-Stress by Seniority') + '</div>';
 
-    // Post
+    // Post — scale height against pre-stress total so bar shrinks visually
     const loss = c.lossByBDC[t] || 0;
     const totalFV = p.total_fv;
     const lossPct = totalFV > 0 ? loss / totalFV : 0;
@@ -7395,7 +7399,7 @@ function updateStacks() {
       if (postFV > 0) postSen.push({label: s, value: postFV, color: SENIORITY_COLORS[s] || '#999'});
     }
     addCash(postSen, t);
-    html += '<div class="bdc-col">' + buildBar(postSen, t + ' Post-Stress by Seniority') + '</div>';
+    html += '<div class="bdc-col">' + buildBar(postSen, t + ' Post-Stress by Seniority', preTotal1) + '</div>';
   }
 
   // ── Assets by Sector ──
@@ -7410,9 +7414,10 @@ function updateStacks() {
       if (fv > 0) preSec.push({label: s.replace(' & ', '/'), value: fv, color: SECTOR_COLORS[s] || '#999'});
     }
     addCash(preSec, t);
+    const preTotal2 = preSec.reduce((s, seg) => s + seg.value, 0);
     html += '<div class="bdc-col">' + buildBar(preSec, t + ' Pre-Stress by Sector') + '</div>';
 
-    // Post
+    // Post — scale height against pre-stress total
     const postSec = [];
     for (const sec of DATA.sectors) {
       const origFV = p.by_sector[sec] ? p.by_sector[sec].fair_value : 0;
@@ -7430,7 +7435,7 @@ function updateStacks() {
       if (postFV > 0) postSec.push({label: sec.replace(' & ', '/'), value: postFV, color: SECTOR_COLORS[sec] || '#999'});
     }
     addCash(postSec, t);
-    html += '<div class="bdc-col">' + buildBar(postSec, t + ' Post-Stress by Sector') + '</div>';
+    html += '<div class="bdc-col">' + buildBar(postSec, t + ' Post-Stress by Sector', preTotal2) + '</div>';
   }
 
   // ── Capital Stack ──
