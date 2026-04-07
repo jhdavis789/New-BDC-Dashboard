@@ -829,6 +829,17 @@
       <p><strong>Non-accrual</strong> means the BDC has stopped recognizing interest income on the loan, typically because the borrower has missed payments or is expected to default.</p>
       <p>Non-accrual status is disclosed via footnotes in the Schedule of Investments. These positions are already marked down (fair value &lt; cost) and represent the portfolio's most distressed credits.</p>
     </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#555">
+        <input type="checkbox" id="naCompanyToggle" style="accent-color:#6366f1">
+        Company-level accounting
+      </label>
+      <span class="info-btn" data-info="naCompanyLevel" style="cursor:pointer;color:#888;font-size:16px">&#9432;</span>
+    </div>
+    <div class="info-popup" data-popup="naCompanyLevel" style="display:none;position:relative;margin:-8px 0 12px">
+      <p><strong>Position-level</strong> (default): Only the specific loan tranches flagged as non-accrual in the filing are counted. This matches the filing's reported non-accrual percentage most closely.</p>
+      <p><strong>Company-level</strong>: When enabled, ALL positions of a company are counted as non-accrual if ANY of its tranches are on non-accrual. This gives a more conservative view of total exposure to distressed borrowers, including performing senior debt at the same company.</p>
+    </div>
     <div class="card-row" id="naCards"></div>
     <div class="toggle-group" id="naToggle">
       <button class="toggle-btn active" data-mode="portfolio">By Portfolio</button>
@@ -30359,10 +30370,10 @@ const DATA = {
           "amount": 221000000
         }
       ],
-      "market_price": 18.01,
+      "market_price": 18.06,
       "market_price_date": "2026-04-07",
-      "market_cap": 12931180000,
-      "price_to_nav": 0.9032
+      "market_cap": 12967080000,
+      "price_to_nav": 0.9057
     },
     "BXSL": {
       "total_assets": 14656463000,
@@ -30869,10 +30880,10 @@ const DATA = {
           "amount": 10000
         }
       ],
-      "market_price": 23.8,
+      "market_price": 23.79,
       "market_price_date": "2026-04-07",
-      "market_cap": 5520863580,
-      "price_to_nav": 0.8841
+      "market_cap": 5518543890,
+      "price_to_nav": 0.8837
     },
     "FSK": {
       "total_assets": 13729000000,
@@ -31504,10 +31515,10 @@ const DATA = {
           "amount": 3000000
         }
       ],
-      "market_price": 10.56,
+      "market_price": 10.57,
       "market_price_date": "2026-04-07",
-      "market_cap": 2957501532,
-      "price_to_nav": 0.5055
+      "market_cap": 2960302197,
+      "price_to_nav": 0.506
     },
     "GBDC": {
       "total_assets": 8893965000,
@@ -31944,10 +31955,10 @@ const DATA = {
           "amount": 4252000
         }
       ],
-      "market_price": 12.78,
+      "market_price": 12.79,
       "market_price_date": "2026-04-07",
-      "market_cap": 3366057552,
-      "price_to_nav": 0.8612
+      "market_cap": 3368691400,
+      "price_to_nav": 0.8619
     },
     "OBDC": {
       "total_assets": 17186365000,
@@ -32516,10 +32527,10 @@ const DATA = {
           "amount": 9839000
         }
       ],
-      "market_price": 10.89,
+      "market_price": 10.92,
       "market_price_date": "2026-04-07",
-      "market_cap": 5438994154,
-      "price_to_nav": 0.7353
+      "market_cap": 5453977609,
+      "price_to_nav": 0.7373
     }
   },
   "liquidity": {
@@ -101601,6 +101612,7 @@ let _fastRAF = null;
 let _fullTimer = null;
 let pikMode = "portfolio";
 let naMode = "portfolio";
+let naCompanyLevel = false;
 
 // Compute total_fv from by_seniority for each portfolio (data has total_fv=0)
 for (const ticker of DATA.tickers) {
@@ -103431,7 +103443,15 @@ function updatePIKChart() {
 }
 
 function renderNATab() {
-  const na = DATA.non_accrual_summary;
+  const naBase = DATA.non_accrual_summary;
+  const na = naCompanyLevel && naBase.company_level ? {
+    by_bdc: naBase.company_level.by_bdc,
+    by_sector: naBase.company_level.by_sector,
+    by_bdc_sector: naBase.company_level.by_bdc_sector,
+    by_seniority: naBase.company_level.by_seniority,
+    by_bdc_seniority: naBase.company_level.by_bdc_seniority,
+    positions: naBase.positions,
+  } : naBase;
   const cardsDiv = document.getElementById('naCards');
   const tickers = getPortfoliosToCalc();
 
@@ -103442,7 +103462,7 @@ function renderNATab() {
     totalNAFV += b.fv;
     totalNACost += b.cost;
     totalCount += b.count;
-    totalPortFV += b.portfolio_fv;
+    totalPortFV += b.portfolio_fv || DATA.portfolios[t].total_fv;
   }
   const naPct = totalPortFV > 0 ? (totalNAFV / totalPortFV) * 100 : 0;
   const avgMTM = totalNACost > 0 ? ((totalNAFV - totalNACost) / totalNACost) * 100 : 0;
@@ -103706,6 +103726,11 @@ document.getElementById('naToggle').addEventListener('click', e => {
   if (!e.target.dataset.mode) return;
   naMode = e.target.dataset.mode;
   document.querySelectorAll('#naToggle .toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === naMode));
+  renderNATab();
+});
+
+document.getElementById('naCompanyToggle').addEventListener('change', e => {
+  naCompanyLevel = e.target.checked;
   renderNATab();
 });
 
@@ -105145,7 +105170,7 @@ applyPreset('mild');
 (function() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#999;z-index:1000;pointer-events:none';
-  const deployTs = 'Apr 7, 2026 9:27 AM ';
+  const deployTs = 'Apr 7, 2026 9:46 AM ';
   if (deployTs.startsWith('__')) {
     el.textContent = 'Local dev';
   } else {
