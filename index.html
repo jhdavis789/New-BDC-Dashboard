@@ -122,43 +122,13 @@
   }
   .historical-btn:hover { background: #e4ddd2; }
   .historical-btn.active-preset { background: #8b7355; color: #fff; border-color: #8b7355; }
-  .historical-btn .cite-dot {
-    display: inline-block;
-    width: 6px; height: 6px;
-    background: #b5a16a;
-    border-radius: 50%;
-    margin-left: 4px;
-    vertical-align: middle;
+  .hist-info {
+    margin-left: -2px;
+    margin-right: 4px;
+    color: #b5a16a;
+    font-size: 15px;
   }
-  .hist-tooltip {
-    display: none;
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-    background: #2c3e50;
-    color: #f0ebe3;
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-size: 11px;
-    line-height: 1.5;
-    width: 340px;
-    z-index: 200;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-    pointer-events: none;
-  }
-  .hist-tooltip::before {
-    content: '';
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 6px solid transparent;
-    border-bottom-color: #2c3e50;
-  }
-  .historical-btn:hover .hist-tooltip { display: block; pointer-events: auto; }
-  .hist-tooltip .cite-label { color: #d4a76a; font-weight: 600; }
-  .hist-tooltip .cite-val { color: #7CAE7A; font-weight: 600; }
+  .hist-info:hover { color: #8b7355; }
 
   /* Controls panel */
   .controls-panel {
@@ -668,42 +638,111 @@
     </div>
     <div class="historical-row" id="historicalRow">
       <span class="row-label">Historical:</span>
-      <button class="historical-btn" data-preset="gfc2008">GFC 2008-09<span class="cite-dot"></span>
-        <div class="hist-tooltip">
-          <div><span class="cite-label">Default Rate:</span> <span class="cite-val">10.81%</span> (S&amp;P/LSTA Leveraged Loan Index, Nov 2009)</div>
-          <div><span class="cite-label">1L Recovery:</span> <span class="cite-val">63.4%</span> (Moody's Ultimate Recovery Database, 2008)</div>
-          <div><span class="cite-label">Realized Loss:</span> <span class="cite-val">~4.0%</span> 1L; CDLI annual return -6.50%</div>
-          <div><span class="cite-label">BDC NAV:</span> ARCC -27%, ACAS -57% (SEC 10-K)</div>
-          <div style="margin-top:4px;color:#aaa;font-size:10px">Sources: S&amp;P Global/LCD, Moody's Default &amp; Recovery 1920-2010, Cliffwater CDLI</div>
-        </div>
-      </button>
-      <button class="historical-btn" data-preset="dotcom2001">Dot-Com 2001-02<span class="cite-dot"></span>
-        <div class="hist-tooltip">
-          <div><span class="cite-label">Default Rate:</span> <span class="cite-val">~7%</span> leveraged loans (Fed/S&amp;P LCD); 10.4% spec-grade (Moody's)</div>
-          <div><span class="cite-label">1L Recovery:</span> <span class="cite-val">65-70%</span> (Moody's LGD downturn calibration)</div>
-          <div><span class="cite-label">Realized Loss:</span> <span class="cite-val">~2.3%</span> 1L; HY bonds 9.6% (Altman/NYU)</div>
-          <div><span class="cite-label">Note:</span> BDCs did not yet exist; leveraged loan proxy</div>
-          <div style="margin-top:4px;color:#aaa;font-size:10px">Sources: Moody's 1920-2006, Altman/NYU Stern, Fed Gov. Powell 2015 speech</div>
-        </div>
-      </button>
-      <button class="historical-btn" data-preset="covid2020">COVID 2020<span class="cite-dot"></span>
-        <div class="hist-tooltip">
-          <div><span class="cite-label">Default Rate:</span> <span class="cite-val">4.17%</span> (S&amp;P/LSTA, Sept 2020)</div>
-          <div><span class="cite-label">1L Recovery:</span> <span class="cite-val">76.1%</span> (S&amp;P 2020 cohort)</div>
-          <div><span class="cite-label">Realized Loss:</span> <span class="cite-val">~1.0%</span> 1L; CDLI cumulative -3.30%</div>
-          <div><span class="cite-label">BDC NAV:</span> ARCC -10% (Q1 trough), non-accruals 5.1%</div>
-          <div style="margin-top:4px;color:#aaa;font-size:10px">Sources: S&amp;P Global/LCD, Cliffwater CDLI Q4 2023, ARCC 10-K FY2020</div>
-        </div>
-      </button>
-      <button class="historical-btn" data-preset="oil2015">Oil Crisis 2015-16<span class="cite-dot"></span>
-        <div class="hist-tooltip">
-          <div><span class="cite-label">Default Rate:</span> <span class="cite-val">~4%</span> broad; <span class="cite-val">16.6%</span> energy sector (S&amp;P/LCD, Oct 2016)</div>
-          <div><span class="cite-label">Recovery:</span> <span class="cite-val">~70%</span> (PitchBook, 2015-2021 avg)</div>
-          <div><span class="cite-label">Realized Loss:</span> <span class="cite-val">~1.2%</span> broad; CDLI cumulative -1.86%</div>
-          <div><span class="cite-label">Energy HY:</span> 13% default rate, 100+ bankruptcies (Fitch)</div>
-          <div style="margin-top:4px;color:#aaa;font-size:10px">Sources: S&amp;P Global/LCD, Fitch Ratings, Cliffwater CDLI, PitchBook</div>
-        </div>
-      </button>
+      <button class="historical-btn" data-preset="gfc2008">GFC 2008-09</button><span class="info-btn hist-info" data-info="hist-gfc2008">&#9432;</span>
+      <button class="historical-btn" data-preset="dotcom2001">Dot-Com 2001-02</button><span class="info-btn hist-info" data-info="hist-dotcom2001">&#9432;</span>
+      <button class="historical-btn" data-preset="covid2020">COVID 2020</button><span class="info-btn hist-info" data-info="hist-covid2020">&#9432;</span>
+      <button class="historical-btn" data-preset="oil2015">Oil Crisis 2015-16</button><span class="info-btn hist-info" data-info="hist-oil2015">&#9432;</span>
+    </div>
+    <!-- Historical scenario info popups (shown via showInfoOverlay) -->
+    <div class="info-popup" data-popup="hist-gfc2008" style="display:none">
+      <p><strong>Global Financial Crisis 2008-09</strong></p>
+      <p style="font-size:12px;color:#888;margin-bottom:10px">Calibrated to peak-stress leveraged loan data. This was the worst credit cycle since the Great Depression.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px">
+        <tr style="border-bottom:1px solid #eee"><td style="padding:4px 0;color:#888">Leveraged loan default rate</td><td style="padding:4px 0;text-align:right;font-weight:600">10.81%</td><td style="padding:4px 8px;color:#999;font-size:11px">S&amp;P/LSTA Index, Nov 2009</td></tr>
+        <tr style="border-bottom:1px solid #eee"><td style="padding:4px 0;color:#888">1L recovery rate</td><td style="padding:4px 0;text-align:right;font-weight:600">63.4%</td><td style="padding:4px 8px;color:#999;font-size:11px">Moody's Ultimate Recovery Database, 2008 cohort</td></tr>
+        <tr style="border-bottom:1px solid #eee"><td style="padding:4px 0;color:#888">Loss given default (1L)</td><td style="padding:4px 0;text-align:right;font-weight:600">36.6%</td><td style="padding:4px 8px;color:#999;font-size:11px">= 1 &minus; 63.4%</td></tr>
+        <tr style="background:#f8f6f0"><td style="padding:4px 0;color:#555;font-weight:600">Realized 1L loss rate</td><td style="padding:4px 0;text-align:right;font-weight:700;color:#c0392b">~4.0%</td><td style="padding:4px 8px;color:#999;font-size:11px">= 10.81% &times; 36.6%</td></tr>
+      </table>
+      <p><strong>Seniority derivation:</strong></p>
+      <p style="font-size:12px">1L/DDTL at <strong>4%</strong> (direct calculation above). Middle-market loans with financial covenants likely had <em>lower</em> defaults than BSL (Man Group research), offsetting any argument for higher LGD. Revolver at <strong>3%</strong> (super-senior priority, higher recovery). 2L at <strong>25%</strong> (Moody's 2L recovery expectation was only 21% in June 2008; range of 15-30% is defensible). Equity at <strong>80%</strong> (PE buyout deal values dropped 90% from 2006-2009 peak; one in four buyout firms never raised another fund).</p>
+      <p style="font-size:12px">JV at <strong>25%</strong> (revised down from 40%: a levered 1L vehicle with 4% underlying loss at 1.5x leverage = ~6-10% equity loss; 40% implied 20%+ underlying portfolio losses, inconsistent with the 4% 1L rate). Bond at <strong>20%</strong> and Unsecured at <strong>35%</strong> (revised from 30/45: the original rates conflated mark-to-market declines with realized losses; Altman data supports ~9% realized HY bond loss, 20% is already conservative).</p>
+      <p><strong>Sector adjustments:</strong></p>
+      <p style="font-size:12px">Consumer <strong>+10%</strong>, Energy &amp; Materials <strong>+10%</strong>, Real Estate &amp; Transportation <strong>+15%</strong> (raised from +8%: CRE was the epicenter of the GFC with values falling 40%+).</p>
+      <p><strong>Cross-checks:</strong></p>
+      <ul style="font-size:12px;margin:4px 0 4px 16px">
+        <li>Cliffwater Direct Lending Index (CDLI) 2008 return: <strong>&minus;6.50%</strong></li>
+        <li>CDLI peak cumulative realized losses: <strong>9.30%</strong> by Q1 2010</li>
+        <li>ARCC NAV decline: <strong>&minus;27%</strong> ($15.47 &rarr; $11.27, SEC 10-K FY2008)</li>
+        <li>ACAS NAV decline: <strong>&minus;57%</strong> ($18.33 &rarr; $7.80; eventually acquired at $3.47)</li>
+        <li>Moody's spec-grade default rate: <strong>13.1%</strong> globally (higher than leveraged loan rate)</li>
+        <li>For an 85% 1L portfolio at 1.0x leverage, this scenario produces ~5-7% portfolio loss &rarr; ~10-14% NAV decline, consistent with well-managed BDC experience</li>
+      </ul>
+      <p style="font-size:11px;color:#999;margin-top:6px"><strong>Sources:</strong> S&amp;P Global/LCD Leveraged Loan Default Study; Moody's "Corporate Default &amp; Recovery Rates, 1920-2010"; Moody's Ultimate Recovery Database; Cliffwater 2017 Q1 Report on U.S. Direct Lending; S&amp;P 2020 Annual Global Corporate Default Study (Table 7); ARCC 10-K FY2008 (SEC EDGAR); Man Group "Impact of Scale on Credit Risk"; Lord Abbett CLO Equity Resilience Study.</p>
+    </div>
+    <div class="info-popup" data-popup="hist-dotcom2001" style="display:none">
+      <p><strong>Dot-Com / Telecom Bust 2001-02</strong></p>
+      <p style="font-size:12px;color:#888;margin-bottom:10px">Dominated by telecom and tech sector defaults (WorldCom, Enron, Adelphia, Global Crossing). BDCs did not yet exist; leveraged loan data used as proxy.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px">
+        <tr style="border-bottom:1px solid #eee"><td style="padding:4px 0;color:#888">Leveraged loan default rate</td><td style="padding:4px 0;text-align:right;font-weight:600">~7%</td><td style="padding:4px 8px;color:#999;font-size:11px">Fed/S&amp;P LCD (Powell 2015 speech)</td></tr>
+        <tr style="border-bottom:1px solid #eee"><td style="padding:4px 0;color:#888">Spec-grade default rate</td><td style="padding:4px 0;text-align:right;font-weight:600">10.4%</td><td style="padding:4px 8px;color:#999;font-size:11px">Moody's Annual Default Study, 2002</td></tr>
+        <tr style="border-bottom:1px solid #eee"><td style="padding:4px 0;color:#888">1L recovery (downturn est.)</td><td style="padding:4px 0;text-align:right;font-weight:600">65-70%</td><td style="padding:4px 8px;color:#999;font-size:11px">Moody's LGD calibrated to 2001-02</td></tr>
+        <tr style="border-bottom:1px solid #eee"><td style="padding:4px 0;color:#888">Loss given default (1L)</td><td style="padding:4px 0;text-align:right;font-weight:600">~32%</td><td style="padding:4px 8px;color:#999;font-size:11px">= 1 &minus; ~68% midpoint</td></tr>
+        <tr style="background:#f8f6f0"><td style="padding:4px 0;color:#555;font-weight:600">Realized 1L loss rate</td><td style="padding:4px 0;text-align:right;font-weight:700;color:#c0392b">~2.3%</td><td style="padding:4px 8px;color:#999;font-size:11px">= 7% &times; 32.5%</td></tr>
+      </table>
+      <p><strong>Seniority derivation:</strong></p>
+      <p style="font-size:12px">1L/DDTL at <strong>2%</strong> (calculation above; could be nudged to 2.5% for middle-market uncertainty premium, but 2% is defensible for diversified 1L). 2L at <strong>15%</strong> (mezzanine debt had devastating outcomes; ~20% default × ~75% LGD for the most leveraged borrowers). Bond at <strong>20%</strong> (revised from 25%: Altman data supports ~10% realized loss on broad HY; 20% is conservative for BDC-quality bonds). Unsecured at <strong>32%</strong> (revised from 40%: senior unsecured recovery was only $21.82 in 2002 per Moody's, but 40% implied near-universal default). Equity at <strong>70%</strong> (NASDAQ fell 78% peak-to-trough; private equity worse with leverage).</p>
+      <p style="font-size:12px">JV at <strong>15%</strong> (revised from 35%: at 2% 1L loss with 1.5x JV leverage, equity loss = ~5-8%; 35% was 17.5× the 1L rate, implying 20%+ underlying losses inconsistent with a 2% 1L assumption).</p>
+      <p><strong>Sector adjustments:</strong></p>
+      <p style="font-size:12px">Software &amp; Technology <strong>+25%</strong>, Media &amp; Telecom <strong>+30%</strong>. These were the epicenter. WorldCom alone accounted for $46B+ in defaults. Modern BDC "software" is enterprise SaaS with recurring revenue, structurally different from 2001 speculative fiber-optic buildouts, but not immune to sector-wide repricing.</p>
+      <p><strong>Key caveats:</strong></p>
+      <ul style="font-size:12px;margin:4px 0 4px 16px">
+        <li>BDCs did not exist during this period &mdash; the S&amp;P/LSTA Leveraged Loan Index was young and skewed large-cap</li>
+        <li>The "~7%" leveraged loan figure comes from a Fed speech citing an S&amp;P chart, not a precise tabulation (confidence: medium-high)</li>
+        <li>The 1L downturn recovery of 65-70% is a Moody's forward-looking LGD assessment calibrated to this recession, not a directly observed number</li>
+        <li>HY bond losses were far worse (12.8% default &times; 74.8% LGD = <strong>~9.6%</strong>), but bonds are not comparable to BDC first-lien loans</li>
+        <li>This was a multi-year bust (2001-2003); a single-period model understates cumulative damage (3-year HY default ~55%, per Invesco)</li>
+      </ul>
+      <p style="font-size:11px;color:#999;margin-top:6px"><strong>Sources:</strong> Moody's "Corporate Default &amp; Recovery Rates, 1920-2006"; Altman &amp; Bana, "Defaults and Returns in the High-Yield Bond Market: The Year 2002 in Review" (NYU Stern/SSRN); Fed Gov. Powell speech, Feb 18 2015; Moody's Ultimate Recovery Database; CFO.com citing Moody's 2008 LGD study.</p>
+    </div>
+    <div class="info-popup" data-popup="hist-covid2020" style="display:none">
+      <p><strong>COVID-19 Crisis 2020</strong></p>
+      <p style="font-size:12px;color:#888;margin-bottom:10px">Sharp but short-lived shock. Massive fiscal/monetary intervention (CARES Act, PPP, Fed credit facilities) dramatically reduced realized losses vs. initial forecasts. This scenario models <em>actual outcomes</em>, not counterfactual.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px">
+        <tr style="border-bottom:1px solid #eee"><td style="padding:4px 0;color:#888">Leveraged loan default rate</td><td style="padding:4px 0;text-align:right;font-weight:600">4.17%</td><td style="padding:4px 8px;color:#999;font-size:11px">S&amp;P/LSTA Index, Sept 2020 (T12M peak)</td></tr>
+        <tr style="border-bottom:1px solid #eee"><td style="padding:4px 0;color:#888">Moody's spec-grade default rate</td><td style="padding:4px 0;text-align:right;font-weight:600">8.5%</td><td style="padding:4px 8px;color:#999;font-size:11px">Moody's, year-end 2020</td></tr>
+        <tr style="border-bottom:1px solid #eee"><td style="padding:4px 0;color:#888">1L recovery rate</td><td style="padding:4px 0;text-align:right;font-weight:600">76.1%</td><td style="padding:4px 8px;color:#999;font-size:11px">S&amp;P Global, 2020 default cohort</td></tr>
+        <tr style="border-bottom:1px solid #eee"><td style="padding:4px 0;color:#888">Loss given default (1L)</td><td style="padding:4px 0;text-align:right;font-weight:600">23.9%</td><td style="padding:4px 8px;color:#999;font-size:11px">= 1 &minus; 76.1%</td></tr>
+        <tr style="background:#f8f6f0"><td style="padding:4px 0;color:#555;font-weight:600">Realized 1L loss rate</td><td style="padding:4px 0;text-align:right;font-weight:700;color:#c0392b">~1.0%</td><td style="padding:4px 8px;color:#999;font-size:11px">= 4.17% &times; 23.9%</td></tr>
+      </table>
+      <p><strong>Seniority derivation:</strong></p>
+      <p style="font-size:12px">1L/DDTL at <strong>1%</strong> (direct calculation; could argue 1.5% given 5.1% non-accrual peak, but realized 1L losses were truly ~1%). 2L at <strong>10%</strong> (raised from 8% based on GFC proportionality: if GFC 2L was 25% at 4% 1L, COVID 2L should be ~10% at 1% 1L; the recovery gap between 1L and 2L is amplified in stress). Unsecured at <strong>18%</strong> (raised from 15%: structural subordination gap was understated). Equity at <strong>40%</strong> (PE markdowns were significant in Q1-Q2 but many recovered by year-end).</p>
+      <p><strong>Sector adjustments:</strong></p>
+      <p style="font-size:12px">Consumer <strong>+12%</strong> (raised from +10%: hospitality, retail, entertainment were devastated; sector-specific defaults were concentrated here). Energy &amp; Materials <strong>+15%</strong> (oil demand collapse; energy accounted for 28% of all loan defaults).</p>
+      <p><strong>Cross-checks:</strong></p>
+      <ul style="font-size:12px;margin:4px 0 4px 16px">
+        <li>CDLI cumulative realized losses: <strong>&minus;3.30%</strong> (vs. &minus;10.16% in GFC)</li>
+        <li>CDLI 2020 full-year return: <strong>+5%</strong> (Q1 loss fully reversed)</li>
+        <li>ARCC NAV: <strong>&minus;10%</strong> peak-to-trough ($17.32 &rarr; $15.58, 10-K FY2020)</li>
+        <li>ARCC non-accruals: peaked at <strong>5.1%</strong> at cost / 3.2% at FV (Q3 2020)</li>
+        <li>Moody's initial forecast was 12.5% default rate &mdash; intervention cut actual to 8.5%</li>
+      </ul>
+      <p style="font-size:12px;color:#e67e22;margin-top:6px"><strong>Note:</strong> This models actual outcomes with $6T+ in fiscal/monetary support. A "COVID without intervention" scenario would be significantly harsher (closer to GFC levels). Use the custom sliders or the GFC preset to model a hypothetical unmitigated pandemic scenario.</p>
+      <p style="font-size:11px;color:#999;margin-top:6px"><strong>Sources:</strong> S&amp;P Global/LCD Default Study; Cliffwater CDLI Q4 2023 Report on U.S. Direct Lending; ARCC 10-K FY2020 (SEC EDGAR); Moody's Q1 2021 Default Report; futurestandard.com "Private Credit Performance in Downturns".</p>
+    </div>
+    <div class="info-popup" data-popup="hist-oil2015" style="display:none">
+      <p><strong>Oil Price Crash / Energy Crisis 2015-16</strong></p>
+      <p style="font-size:12px;color:#888;margin-bottom:10px">Sector-concentrated crisis driven by crude oil falling from $100+ to $26/bbl. Defaults concentrated in energy; other sectors were minimally affected.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px">
+        <tr style="border-bottom:1px solid #eee"><td style="padding:4px 0;color:#888">Broad leveraged loan default</td><td style="padding:4px 0;text-align:right;font-weight:600">~4%</td><td style="padding:4px 8px;color:#999;font-size:11px">S&amp;P/LCD (incl. distressed exchanges)</td></tr>
+        <tr style="border-bottom:1px solid #eee"><td style="padding:4px 0;color:#888">Energy sector loan default</td><td style="padding:4px 0;text-align:right;font-weight:600;color:#c0392b">16.6%</td><td style="padding:4px 8px;color:#999;font-size:11px">S&amp;P/LCD, T12M Oct 2016</td></tr>
+        <tr style="border-bottom:1px solid #eee"><td style="padding:4px 0;color:#888">Energy HY bond default</td><td style="padding:4px 0;text-align:right;font-weight:600">13%</td><td style="padding:4px 8px;color:#999;font-size:11px">Fitch Ratings, by May 2016</td></tr>
+        <tr style="border-bottom:1px solid #eee"><td style="padding:4px 0;color:#888">Broad loan recovery</td><td style="padding:4px 0;text-align:right;font-weight:600">~70%</td><td style="padding:4px 8px;color:#999;font-size:11px">PitchBook (2015-2021 avg)</td></tr>
+        <tr style="background:#f8f6f0"><td style="padding:4px 0;color:#555;font-weight:600">Realized 1L loss (non-energy)</td><td style="padding:4px 0;text-align:right;font-weight:700;color:#27ae60">~1%</td><td style="padding:4px 8px;color:#999;font-size:11px">= ~4% &times; 30% LGD (non-energy)</td></tr>
+      </table>
+      <p><strong>Seniority derivation:</strong></p>
+      <p style="font-size:12px">Base seniority rates are <strong>zeroed for senior debt</strong> (1L, Unitranche, DDTL, Revolver, ABF all at 0%) because this was a sector-concentrated crisis &mdash; non-energy portfolios were essentially unaffected. Subordinated base rates are modest (2L <strong>2%</strong>, Equity <strong>10%</strong>) to capture mild broad-market pressure. The <strong>Energy &amp; Materials +10%</strong> sector overlay carries the story.</p>
+      <p style="font-size:12px;color:#e67e22"><strong>Recalibration note:</strong> The sector add-on was reduced from +40% to +10%. The multiplicative model (combined = 1&minus;(1&minus;sen)(1&minus;sec)) previously created a 40.6% energy 1L loss, roughly 7&times; the actual ~6% realized loss (16.6% default &times; ~35% LGD). At +10%, energy 1L = 10% combined &mdash; still somewhat high but within range for the worst-exposed BDCs. The model architecture cannot simultaneously represent low energy 1L losses (~6%) and high energy equity losses (~50%+) with a single sector multiplier; it is calibrated for overall portfolio accuracy.</p>
+      <p><strong>Cross-checks:</strong></p>
+      <ul style="font-size:12px;margin:4px 0 4px 16px">
+        <li>CDLI cumulative realized losses: <strong>&minus;1.86%</strong> (mild for diversified portfolios)</li>
+        <li>CDLI income exceeded losses by <strong>+8.44%</strong></li>
+        <li>100+ energy bankruptcies (Fitch), 30 energy loan issuers defaulted</li>
+        <li>Energy HY OAS reached <strong>1,415 bps</strong> (vs. 335 bps in mid-2014)</li>
+        <li>Non-energy BDCs (ARCC, MAIN, GBDC) were largely unaffected</li>
+        <li>Energy-heavy BDCs (PSEC, FSK) had material NAV declines</li>
+      </ul>
+      <p style="font-size:12px;color:#888;margin-top:6px"><strong>Portfolio impact:</strong> For a zero-energy portfolio, this preset is equivalent to Reset (senior debt at 0%). For a portfolio with 10% energy exposure, expect ~1-2% total portfolio loss, consistent with the CDLI -1.86% cumulative figure.</p>
+      <p style="font-size:11px;color:#999;margin-top:6px"><strong>Sources:</strong> S&amp;P Global Market Intelligence/LCD; Fitch Ratings (Nov 2016, BusinessWire); Cliffwater CDLI Q4 2023 Report; PitchBook "Out-of-court restructurings lift leveraged loan recovery rates"; FRED BAMLH0A0HYM2 (ICE BofA HY OAS).</p>
     </div>
     <div id="savedScenariosRow" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:-8px 0 8px"></div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
@@ -101394,29 +101433,37 @@ const PRESETS = {
   // 1L recovery 63.4% (Moody's URD 2008). CDLI annual return -6.50%.
   // ARCC NAV -27%, ACAS NAV -57%. Cumulative realized losses 9.30% (CDLI Q1 2010).
   gfc2008: {
-    seniority: { "1L":4, "Unitranche":5, "DDTL":4, "Revolver":3, "ABF":5, "2L":25, "Bond":30, "Unsecured":45, "Preferred":60, "Equity":80, "JV":40, "CLO":15, "Unknown":15 },
-    sectors: { "Consumer":10, "Energy & Materials":10, "Real Estate & Transportation":8, _default: 0 }
+    // 1L: 10.81% default × 36.6% LGD = 4.0% (S&P/LSTA, Moody's URD 2008)
+    // JV: 25% (1L 4% × ~1.5x leverage + illiquidity; 40% was internally inconsistent)
+    // Bond/Unsecured: reduced from 30/45 to 20/35 (30/45 conflated MTM with realized loss)
+    // RE sector: raised to 15% (epicenter of GFC — CRE values fell 40%+)
+    seniority: { "1L":4, "Unitranche":5, "DDTL":4, "Revolver":3, "ABF":5, "2L":25, "Bond":20, "Unsecured":35, "Preferred":60, "Equity":80, "JV":25, "CLO":15, "Unknown":15 },
+    sectors: { "Consumer":10, "Energy & Materials":10, "Real Estate & Transportation":15, _default: 0 }
   },
-  // Dot-Com/Telecom 2001-02: Leveraged loan default ~7% (Fed/S&P LCD).
-  // Moody's spec-grade 10.4% (2002). 1L recovery 65-70% (Moody's LGD downturn).
-  // HY bond default 12.8% (Altman/NYU). BDCs did not yet exist.
   dotcom2001: {
-    seniority: { "1L":2, "Unitranche":3, "DDTL":2, "Revolver":2, "ABF":3, "2L":15, "Bond":25, "Unsecured":40, "Preferred":50, "Equity":70, "JV":35, "CLO":10, "Unknown":10 },
+    // 1L: ~7% default × ~32% LGD = 2.3% (Fed/S&P LCD, Moody's LGD downturn)
+    // JV: 15% (was 35% = 17.5× the 1L rate, indefensible for a levered 1L vehicle)
+    // Bond: 20% (was 25%; Altman data supports ~10% realized, 20% is already conservative)
+    // Unsecured: 32% (was 40%; extreme but proportional to data)
+    seniority: { "1L":2, "Unitranche":3, "DDTL":2, "Revolver":2, "ABF":3, "2L":15, "Bond":20, "Unsecured":32, "Preferred":50, "Equity":70, "JV":15, "CLO":10, "Unknown":10 },
     sectors: { "Software & Technology":25, "Media & Telecom":30, _default: 0 }
   },
-  // COVID 2020: S&P/LSTA default 4.17% (Sept 2020). 1L recovery 76.1% (S&P cohort).
-  // CDLI cumulative realized -3.30%. ARCC NAV -10%, non-accruals peaked 5.1%.
-  // Sharp V-shaped recovery with massive fiscal/monetary intervention.
   covid2020: {
-    seniority: { "1L":1, "Unitranche":2, "DDTL":1, "Revolver":1, "ABF":2, "2L":8, "Bond":10, "Unsecured":15, "Preferred":25, "Equity":40, "JV":20, "CLO":5, "Unknown":5 },
-    sectors: { "Consumer":10, "Energy & Materials":15, _default: 0 }
+    // 1L: 4.17% default × 23.9% LGD = 1.0% (S&P/LSTA, S&P 2020 cohort)
+    // 2L: 10% (was 8%; GFC proportionality + BDC non-accrual data support ~10%)
+    // Unsecured: 18% (was 15%; subordination gap understated)
+    // Consumer: 12% (was 10%; hospitality/retail/entertainment devastation)
+    // Models actual outcomes WITH $6T fiscal/monetary intervention
+    seniority: { "1L":1, "Unitranche":2, "DDTL":1, "Revolver":1, "ABF":2, "2L":10, "Bond":10, "Unsecured":18, "Preferred":25, "Equity":40, "JV":20, "CLO":5, "Unknown":5 },
+    sectors: { "Consumer":12, "Energy & Materials":15, _default: 0 }
   },
-  // Oil Crisis 2015-16: Broad leveraged loan default ~4% (S&P/LCD).
-  // Energy sector 16.6% default (S&P/LCD Oct 2016), 100+ energy bankruptcies (Fitch).
-  // CDLI cumulative realized -1.86%. Sector-concentrated, not systemic.
   oil2015: {
-    seniority: { "1L":1, "Unitranche":1, "DDTL":1, "Revolver":1, "ABF":1, "2L":5, "Bond":8, "Unsecured":12, "Preferred":15, "Equity":25, "JV":10, "CLO":3, "Unknown":3 },
-    sectors: { "Energy & Materials":40, _default: 0 }
+    // Sector-concentrated crisis: base seniority zeroed for senior debt (non-energy unaffected)
+    // Energy sector: 10% (was 40%; multiplicative model created 40.6% energy 1L loss, ~7× actual ~6%)
+    // At 10%: energy 1L = 10% combined (high but not absurd), non-energy = 0%
+    // Equity base: 10% (non-energy PE was fine; energy equity handled by sector add-on)
+    seniority: { "1L":0, "Unitranche":0, "DDTL":0, "Revolver":0, "ABF":0, "2L":2, "Bond":3, "Unsecured":5, "Preferred":8, "Equity":10, "JV":3, "CLO":1, "Unknown":1 },
+    sectors: { "Energy & Materials":10, _default: 0 }
   }
 };
 
@@ -103809,7 +103856,8 @@ function showInfoOverlay(key) {
   if (!popup) return;
   const overlay = document.createElement('div');
   overlay.className = 'info-overlay';
-  overlay.innerHTML = `<div class="info-overlay-content"><button class="info-overlay-close">&times;</button>${popup.innerHTML}</div>`;
+  const wide = key.startsWith('hist-') ? ' style="max-width:560px"' : '';
+  overlay.innerHTML = `<div class="info-overlay-content"${wide}><button class="info-overlay-close">&times;</button>${popup.innerHTML}</div>`;
   document.body.appendChild(overlay);
   overlay.addEventListener('click', ev => {
     if (ev.target === overlay || ev.target.closest('.info-overlay-close')) {
