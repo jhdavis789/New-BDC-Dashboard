@@ -92,6 +92,74 @@
   .preset-btn:hover { background: var(--btn-hover); }
   .preset-btn.active-preset { background: var(--tab-active); color: #fff; border-color: var(--tab-active); }
 
+  /* Historical preset row */
+  .historical-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .historical-row .row-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .historical-btn {
+    padding: 6px 14px;
+    border: 1px solid #c4b5a0;
+    background: #f0ebe3;
+    color: #5a4e3c;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .historical-btn:hover { background: #e4ddd2; }
+  .historical-btn.active-preset { background: #8b7355; color: #fff; border-color: #8b7355; }
+  .historical-btn .cite-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: #b5a16a;
+    border-radius: 50%;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+  .hist-tooltip {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2c3e50;
+    color: #f0ebe3;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 11px;
+    line-height: 1.5;
+    width: 340px;
+    z-index: 200;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    pointer-events: none;
+  }
+  .hist-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-bottom-color: #2c3e50;
+  }
+  .historical-btn:hover .hist-tooltip { display: block; pointer-events: auto; }
+  .hist-tooltip .cite-label { color: #d4a76a; font-weight: 600; }
+  .hist-tooltip .cite-val { color: #7CAE7A; font-weight: 600; }
+
   /* Controls panel */
   .controls-panel {
     display: grid;
@@ -598,6 +666,45 @@
       <button class="preset-btn" data-preset="jaod">JAOD Extreme</button>
       <button class="preset-btn" id="copyScenarioBtn" title="Copy current custom scenario to clipboard" style="display:none;background:#3b6e8f;color:#fff;border-color:#3b6e8f;margin-left:auto">Copy Current Scenario</button>
     </div>
+    <div class="historical-row" id="historicalRow">
+      <span class="row-label">Historical:</span>
+      <button class="historical-btn" data-preset="gfc2008">GFC 2008-09<span class="cite-dot"></span>
+        <div class="hist-tooltip">
+          <div><span class="cite-label">Default Rate:</span> <span class="cite-val">10.81%</span> (S&amp;P/LSTA Leveraged Loan Index, Nov 2009)</div>
+          <div><span class="cite-label">1L Recovery:</span> <span class="cite-val">63.4%</span> (Moody's Ultimate Recovery Database, 2008)</div>
+          <div><span class="cite-label">Realized Loss:</span> <span class="cite-val">~4.0%</span> 1L; CDLI annual return -6.50%</div>
+          <div><span class="cite-label">BDC NAV:</span> ARCC -27%, ACAS -57% (SEC 10-K)</div>
+          <div style="margin-top:4px;color:#aaa;font-size:10px">Sources: S&amp;P Global/LCD, Moody's Default &amp; Recovery 1920-2010, Cliffwater CDLI</div>
+        </div>
+      </button>
+      <button class="historical-btn" data-preset="dotcom2001">Dot-Com 2001-02<span class="cite-dot"></span>
+        <div class="hist-tooltip">
+          <div><span class="cite-label">Default Rate:</span> <span class="cite-val">~7%</span> leveraged loans (Fed/S&amp;P LCD); 10.4% spec-grade (Moody's)</div>
+          <div><span class="cite-label">1L Recovery:</span> <span class="cite-val">65-70%</span> (Moody's LGD downturn calibration)</div>
+          <div><span class="cite-label">Realized Loss:</span> <span class="cite-val">~2.3%</span> 1L; HY bonds 9.6% (Altman/NYU)</div>
+          <div><span class="cite-label">Note:</span> BDCs did not yet exist; leveraged loan proxy</div>
+          <div style="margin-top:4px;color:#aaa;font-size:10px">Sources: Moody's 1920-2006, Altman/NYU Stern, Fed Gov. Powell 2015 speech</div>
+        </div>
+      </button>
+      <button class="historical-btn" data-preset="covid2020">COVID 2020<span class="cite-dot"></span>
+        <div class="hist-tooltip">
+          <div><span class="cite-label">Default Rate:</span> <span class="cite-val">4.17%</span> (S&amp;P/LSTA, Sept 2020)</div>
+          <div><span class="cite-label">1L Recovery:</span> <span class="cite-val">76.1%</span> (S&amp;P 2020 cohort)</div>
+          <div><span class="cite-label">Realized Loss:</span> <span class="cite-val">~1.0%</span> 1L; CDLI cumulative -3.30%</div>
+          <div><span class="cite-label">BDC NAV:</span> ARCC -10% (Q1 trough), non-accruals 5.1%</div>
+          <div style="margin-top:4px;color:#aaa;font-size:10px">Sources: S&amp;P Global/LCD, Cliffwater CDLI Q4 2023, ARCC 10-K FY2020</div>
+        </div>
+      </button>
+      <button class="historical-btn" data-preset="oil2015">Oil Crisis 2015-16<span class="cite-dot"></span>
+        <div class="hist-tooltip">
+          <div><span class="cite-label">Default Rate:</span> <span class="cite-val">~4%</span> broad; <span class="cite-val">16.6%</span> energy sector (S&amp;P/LCD, Oct 2016)</div>
+          <div><span class="cite-label">Recovery:</span> <span class="cite-val">~70%</span> (PitchBook, 2015-2021 avg)</div>
+          <div><span class="cite-label">Realized Loss:</span> <span class="cite-val">~1.2%</span> broad; CDLI cumulative -1.86%</div>
+          <div><span class="cite-label">Energy HY:</span> 13% default rate, 100+ bankruptcies (Fitch)</div>
+          <div style="margin-top:4px;color:#aaa;font-size:10px">Sources: S&amp;P Global/LCD, Fitch Ratings, Cliffwater CDLI, PitchBook</div>
+        </div>
+      </button>
+    </div>
     <div id="savedScenariosRow" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:-8px 0 8px"></div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
       <input type="text" id="pasteScenarioInput" placeholder="Paste a copied scenario here…" style="flex:1;max-width:420px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:monospace;color:#333;background:#fafaf7">
@@ -870,6 +977,13 @@
       <button class="preset-btn" data-preset="severe">Severe</button>
       <button class="preset-btn" data-preset="equitywipe">Equity Wipe</button>
       <button class="preset-btn" data-preset="jaod">JAOD Extreme</button>
+    </div>
+    <div class="historical-row" id="liqHistoricalRow">
+      <span class="row-label">Historical:</span>
+      <button class="historical-btn" data-preset="gfc2008">GFC 2008-09</button>
+      <button class="historical-btn" data-preset="dotcom2001">Dot-Com 2001-02</button>
+      <button class="historical-btn" data-preset="covid2020">COVID 2020</button>
+      <button class="historical-btn" data-preset="oil2015">Oil Crisis 2015-16</button>
     </div>
 
     <!-- Seniority + Sector Loss Rate Sliders -->
@@ -101274,6 +101388,35 @@ const PRESETS = {
     seniority: { "1L":25, "Unitranche":30, "DDTL":30, "Revolver":25, "ABF":50, "2L":100, "Bond":100, "Unsecured":100, "Preferred":100, "Equity":100, "JV":50, "CLO":100, "Unknown":100 },
     sectors: { "Software & Technology":50, _default: 20 },
     repricing: 1.5
+  },
+  // ── Historical scenarios (validated, source-cited) ──
+  // GFC 2008-09: S&P/LSTA leveraged loan default peaked 10.81% (Nov 2009).
+  // 1L recovery 63.4% (Moody's URD 2008). CDLI annual return -6.50%.
+  // ARCC NAV -27%, ACAS NAV -57%. Cumulative realized losses 9.30% (CDLI Q1 2010).
+  gfc2008: {
+    seniority: { "1L":4, "Unitranche":5, "DDTL":4, "Revolver":3, "ABF":5, "2L":25, "Bond":30, "Unsecured":45, "Preferred":60, "Equity":80, "JV":40, "CLO":15, "Unknown":15 },
+    sectors: { "Consumer":10, "Energy & Materials":10, "Real Estate & Transportation":8, _default: 0 }
+  },
+  // Dot-Com/Telecom 2001-02: Leveraged loan default ~7% (Fed/S&P LCD).
+  // Moody's spec-grade 10.4% (2002). 1L recovery 65-70% (Moody's LGD downturn).
+  // HY bond default 12.8% (Altman/NYU). BDCs did not yet exist.
+  dotcom2001: {
+    seniority: { "1L":2, "Unitranche":3, "DDTL":2, "Revolver":2, "ABF":3, "2L":15, "Bond":25, "Unsecured":40, "Preferred":50, "Equity":70, "JV":35, "CLO":10, "Unknown":10 },
+    sectors: { "Software & Technology":25, "Media & Telecom":30, _default: 0 }
+  },
+  // COVID 2020: S&P/LSTA default 4.17% (Sept 2020). 1L recovery 76.1% (S&P cohort).
+  // CDLI cumulative realized -3.30%. ARCC NAV -10%, non-accruals peaked 5.1%.
+  // Sharp V-shaped recovery with massive fiscal/monetary intervention.
+  covid2020: {
+    seniority: { "1L":1, "Unitranche":2, "DDTL":1, "Revolver":1, "ABF":2, "2L":8, "Bond":10, "Unsecured":15, "Preferred":25, "Equity":40, "JV":20, "CLO":5, "Unknown":5 },
+    sectors: { "Consumer":10, "Energy & Materials":15, _default: 0 }
+  },
+  // Oil Crisis 2015-16: Broad leveraged loan default ~4% (S&P/LCD).
+  // Energy sector 16.6% default (S&P/LCD Oct 2016), 100+ energy bankruptcies (Fitch).
+  // CDLI cumulative realized -1.86%. Sector-concentrated, not systemic.
+  oil2015: {
+    seniority: { "1L":1, "Unitranche":1, "DDTL":1, "Revolver":1, "ABF":1, "2L":5, "Bond":8, "Unsecured":12, "Preferred":15, "Equity":25, "JV":10, "CLO":3, "Unknown":3 },
+    sectors: { "Energy & Materials":40, _default: 0 }
   }
 };
 
@@ -101281,6 +101424,7 @@ function applyPreset(name) {
   const p = PRESETS[name];
   if (!p) return;
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.toggle('active-preset', b.dataset.preset === name));
+  document.querySelectorAll('.historical-btn').forEach(b => b.classList.toggle('active-preset', b.dataset.preset === name));
 
   for (const s of ACTIVE_SENIORITY) {
     const val = p.seniority[s] != null ? p.seniority[s] : 0;
@@ -101308,6 +101452,10 @@ function applyPreset(name) {
 }
 
 function css(s) { return s.replace(/[^a-zA-Z0-9]/g, '_'); }
+function clearAllPresetActive() {
+  clearAllPresetActive();
+  document.querySelectorAll('.historical-btn').forEach(b => b.classList.remove('active-preset'));
+}
 
 // ======== SAVED SCENARIOS (localStorage with graceful fallback) ========
 const SAVED_SCENARIOS_KEY = 'bdc_stress_scenarios_v1';
@@ -101356,7 +101504,7 @@ function applyScenarioData(p) {
     if (num) num.value = val;
   }
   maturityHorizonYears = p.repricing != null ? p.repricing : 0;
-  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active-preset'));
+  clearAllPresetActive();
   syncSliderUI();
   recalculate();
   if (selectedView === 'liquidity') renderLiquidityTab();
@@ -101426,7 +101574,7 @@ function renderSavedButtons() {
     btn.title = 'Load ' + s.name + (s.savedAt ? ' (saved ' + s.savedAt.slice(0, 10) + ')' : '');
     btn.addEventListener('click', () => {
       applyScenarioData(s.data);
-      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active-preset'));
+      clearAllPresetActive();
       btn.classList.add('active-preset');
     });
 
@@ -101583,7 +101731,7 @@ function buildSliders() {
     // Fast path on drag: only update summary cards
     el.addEventListener('input', () => {
       syncSlider(el);
-      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active-preset'));
+      clearAllPresetActive();
       if (_fastRAF) cancelAnimationFrame(_fastRAF);
       _fastRAF = requestAnimationFrame(() => { _fastRAF = null; recalculateFast(); });
       if (_fullTimer) clearTimeout(_fullTimer);
@@ -101625,7 +101773,7 @@ function quickSeniority(action) {
     }
   }
   syncSliderUI();
-  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active-preset'));
+  clearAllPresetActive();
   recalculate();
 }
 
@@ -101634,7 +101782,7 @@ function quickSector(val) {
     sectorRates[s] = val;
   }
   syncSliderUI();
-  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active-preset'));
+  clearAllPresetActive();
   recalculate();
 }
 
@@ -103277,6 +103425,17 @@ document.getElementById('presetRow').addEventListener('click', e => {
 document.getElementById('liqPresetRow').addEventListener('click', e => {
   if (!e.target.dataset.preset) return;
   applyPreset(e.target.dataset.preset);
+});
+// Historical scenario buttons (both tabs) — use closest() to handle clicks on child elements (cite-dot, tooltip text)
+document.getElementById('historicalRow').addEventListener('click', e => {
+  const btn = e.target.closest('.historical-btn');
+  if (!btn || !btn.dataset.preset) return;
+  applyPreset(btn.dataset.preset);
+});
+document.getElementById('liqHistoricalRow').addEventListener('click', e => {
+  const btn = e.target.closest('.historical-btn');
+  if (!btn || !btn.dataset.preset) return;
+  applyPreset(btn.dataset.preset);
 });
 
 document.getElementById('toggleSeniority').addEventListener('click', e => {
