@@ -920,6 +920,40 @@
         </div>
       </div>
     </div>
+
+    <!-- BOND MARKET SECTION (ALL tab only) -->
+    <div id="bondMarketSection" style="display:none">
+      <h2 class="section-title" style="margin-top:24px">BDC Bond Market <span class="info-btn" data-info="bondMarket">&#9432;</span> <span id="bondAsOf" style="font-size:11px;font-weight:400;color:#999"></span></h2>
+      <div class="info-popup" data-popup="bondMarket" style="display:none">
+        <p><strong>Bond yields and spreads</strong> are calculated from each BDC's outstanding unsecured notes using coupon rates and maturities from SEC filings, priced against the live FRED treasury curve + ICE BofA credit index OAS.</p>
+        <p><strong>Credit spread</strong> = Fair yield &minus; maturity-matched treasury. <strong>Fair yield</strong> = treasury rate + index OAS (BBB for IG-rated, BB for HY-rated BDCs).</p>
+        <p>This uses index-level OAS as a baseline. Individual bonds may trade tighter or wider than the index depending on liquidity, deal size, and issuer-specific factors.</p>
+        <p style="font-size:11px;color:#999"><strong>Data sources:</strong> FRED (ICE BofA BBB/BB OAS, Treasury yields). Bond universe from SEC 10-K/10-Q filings.</p>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <span style="font-size:12px;color:#888;font-weight:500">Chart:</span>
+        <select id="bondXAxis" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;background:#fff">
+          <option value="leverage">Debt/Equity Leverage</option>
+          <option value="base_coverage">Base Asset Coverage %</option>
+          <option value="stressed_coverage">Stressed Asset Coverage %</option>
+          <option value="unsecured_pct">Unsecured Debt %</option>
+          <option value="loss_pct">Stressed Portfolio Loss %</option>
+        </select>
+        <span style="font-size:12px;color:#888">vs</span>
+        <select id="bondYAxis" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;background:#fff">
+          <option value="avg_spread">Avg Credit Spread (bps)</option>
+          <option value="avg_yield">Avg Yield (%)</option>
+          <option value="wavg_yield">Wtd Avg Yield (%)</option>
+          <option value="wavg_spread">Wtd Avg Spread (bps)</option>
+        </select>
+      </div>
+      <div class="chart-row" style="grid-template-columns:1fr 1fr">
+        <div class="chart-box"><canvas id="bondScatterChart"></canvas></div>
+        <div class="chart-box"><canvas id="bondBarChart"></canvas></div>
+      </div>
+      <div id="bondTableContainer" style="margin-top:16px"></div>
+    </div>
   </div>
 
   <!-- PIK & NON-ACCRUAL TAB -->
@@ -101309,6 +101343,13 @@ const DATA = {
         }
       ]
     }
+  },
+  "bond_market": {
+    "ratings": {"ARCC":"BBB","BXSL":"BBB-","FSK":"BB+","GBDC":"BBB-","OBDC":"BBB-"},
+    "fred_bbb_oas": null,
+    "fred_bb_oas": null,
+    "fred_5yr_tsy": null,
+    "as_of": null
   }
 };
 
@@ -103894,6 +103935,7 @@ function refreshAll() {
     if (sectorChart) { sectorChart.destroy(); sectorChart = null; }
     if (bdcChart) { bdcChart.destroy(); bdcChart = null; }
     recalculate();
+    renderBondMarket();
   } else if (selectedView === 'liquidity') {
     renderLiquidityTab();
   } else {
@@ -105011,6 +105053,362 @@ buildSliders();
 applyPreset('mild');
 
 // ======== TIMESTAMP ========
+// ======== BOND MARKET SECTION ========
+let bondScatterChart = null;
+let bondBarChart = null;
+let _bondMetrics = null;
+let _fredLoaded = false;
+
+async function fetchFredData() {
+  if (_fredLoaded) return;
+  try {
+    const [bbbRes, bbRes, tsy2Res, tsy5Res, tsy10Res] = await Promise.all([
+      fetch('https://fred.stlouisfed.org/graph/fredgraph.csv?id=BAMLC0A4CBBB&cosd=2025-01-01').then(r => r.text()),
+      fetch('https://fred.stlouisfed.org/graph/fredgraph.csv?id=BAMLH0A1HYBB&cosd=2025-01-01').then(r => r.text()),
+      fetch('https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS2&cosd=2025-01-01').then(r => r.text()),
+      fetch('https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS5&cosd=2025-01-01').then(r => r.text()),
+      fetch('https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10&cosd=2025-01-01').then(r => r.text()),
+    ]);
+    const parseLast = csv => {
+      const lines = csv.trim().split('\n').filter(l => !l.startsWith('DATE') && !l.includes('.'));
+      const valid = lines.filter(l => { const v = l.split(',')[1]; return v && v !== '.' && !isNaN(+v); });
+      if (!valid.length) return null;
+      const last = valid[valid.length - 1].split(',');
+      return { date: last[0], value: parseFloat(last[1]) };
+    };
+    const bbb = parseLast(bbbRes);
+    const bb = parseLast(bbRes);
+    const tsy2 = parseLast(tsy2Res);
+    const tsy5 = parseLast(tsy5Res);
+    const tsy10 = parseLast(tsy10Res);
+    if (bbb) DATA.bond_market.fred_bbb_oas = bbb.value;
+    if (bb) DATA.bond_market.fred_bb_oas = bb.value;
+    if (tsy2 && tsy5 && tsy10) {
+      DATA.bond_market.tsy_curve = { 2: tsy2.value, 5: tsy5.value, 10: tsy10.value };
+    }
+    DATA.bond_market.as_of = (bbb || bb || tsy5 || {}).date || null;
+    _fredLoaded = true;
+  } catch (e) {
+    console.warn('FRED fetch failed:', e);
+  }
+}
+
+function interpTsy(yearsToMaturity) {
+  const c = DATA.bond_market.tsy_curve;
+  if (!c) return 4.0; // fallback
+  if (yearsToMaturity <= 2) return c[2];
+  if (yearsToMaturity <= 5) return c[2] + (c[5] - c[2]) * (yearsToMaturity - 2) / 3;
+  if (yearsToMaturity <= 10) return c[5] + (c[10] - c[5]) * (yearsToMaturity - 5) / 5;
+  return c[10] + (yearsToMaturity - 10) * 0.02; // slight upslope beyond 10yr
+}
+
+function computeBondMetrics() {
+  const bm = DATA.bond_market;
+  const bbbOAS = bm.fred_bbb_oas || 1.04;
+  const bbOAS = bm.fred_bb_oas || 1.77;
+  const tickers = ['ARCC','BXSL','FSK','GBDC','OBDC'];
+  const metrics = {};
+
+  for (const t of tickers) {
+    const cap = DATA.capital_structure[t];
+    if (!cap) continue;
+    const instruments = cap.unsecured_instruments || [];
+    const rating = bm.ratings[t] || 'BBB-';
+    const isHY = rating.startsWith('BB');
+    const indexOAS = isHY ? bbOAS : bbbOAS;
+
+    const bonds = [];
+    for (const inst of instruments) {
+      if (inst.type !== 'unsecured_notes') continue;
+      const coupon = parseFloat(inst.rate) || 0;
+      const matDate = new Date(inst.maturity);
+      if (isNaN(matDate)) continue;
+      const yearsToMat = Math.max(0.25, (matDate - new Date()) / (365.25 * 86400000));
+      const tsyRate = interpTsy(yearsToMat);
+      const fairYield = tsyRate + indexOAS;
+      const creditSpread = (fairYield - tsyRate) * 100; // bps, = indexOAS * 100
+      // Simplified bond price: P ≈ C/y * (1 - 1/(1+y)^n) + 100/(1+y)^n
+      const y = fairYield / 100;
+      const c = coupon / 200; // semiannual coupon
+      const n = yearsToMat * 2; // semiannual periods
+      const yh = y / 2;
+      const pv = yh > 0 ? c / yh * (1 - 1 / Math.pow(1 + yh, n)) + 100 / Math.pow(1 + yh, n) : 100;
+      bonds.push({
+        name: inst.name,
+        amount: inst.amount,
+        coupon,
+        maturity: inst.maturity,
+        yearsToMat: +yearsToMat.toFixed(2),
+        tsyRate: +tsyRate.toFixed(3),
+        fairYield: +fairYield.toFixed(3),
+        creditSpread: +(indexOAS * 100).toFixed(0),
+        estPrice: +pv.toFixed(2),
+      });
+    }
+    if (!bonds.length) continue;
+
+    const totalAmt = bonds.reduce((s, b) => s + b.amount, 0);
+    const avgYield = bonds.reduce((s, b) => s + b.fairYield, 0) / bonds.length;
+    const wavgYield = bonds.reduce((s, b) => s + b.fairYield * b.amount, 0) / totalAmt;
+    const avgSpread = bonds.reduce((s, b) => s + b.creditSpread, 0) / bonds.length;
+    const wavgSpread = bonds.reduce((s, b) => s + b.creditSpread * b.amount, 0) / totalAmt;
+    const wavgMat = bonds.reduce((s, b) => s + b.yearsToMat * b.amount, 0) / totalAmt;
+
+    // Fundamental metrics
+    const leverage = cap.total_debt > 0 && cap.equity > 0 ? cap.total_debt / cap.equity : 0;
+    const baseCoverage = cap.total_debt > 0 ? (cap.total_assets / cap.total_debt) * 100 : 0;
+    const unsecuredPct = cap.total_debt > 0 ? (cap.unsecured_debt / cap.total_debt) * 100 : 0;
+    // Stressed coverage and loss from computed stress
+    let stressedCoverage = baseCoverage;
+    let lossPct = 0;
+    if (_computed && _computed.lossByBDC[t] != null) {
+      const loss = _computed.lossByBDC[t];
+      const postAssets = cap.total_assets - loss;
+      stressedCoverage = cap.total_debt > 0 ? (postAssets / cap.total_debt) * 100 : 0;
+      lossPct = cap.total_investments > 0 ? (loss / cap.total_investments) * 100 : 0;
+    }
+
+    metrics[t] = {
+      bonds, rating, isHY, indexOAS,
+      totalAmt, avgYield, wavgYield, avgSpread, wavgSpread, wavgMat,
+      leverage, baseCoverage, stressedCoverage, unsecuredPct, lossPct,
+    };
+  }
+  _bondMetrics = metrics;
+  return metrics;
+}
+
+function renderBondMarket() {
+  const section = document.getElementById('bondMarketSection');
+  if (!section) return;
+  // Only show on ALL tab
+  if (selectedBDC !== 'ALL') { section.style.display = 'none'; return; }
+  section.style.display = '';
+
+  if (!_fredLoaded) {
+    fetchFredData().then(() => { computeBondMetrics(); renderBondCharts(); renderBondTable(); });
+    return;
+  }
+  computeBondMetrics();
+  renderBondCharts();
+  renderBondTable();
+}
+
+function renderBondCharts() {
+  if (!_bondMetrics) return;
+  const xSel = document.getElementById('bondXAxis').value;
+  const ySel = document.getElementById('bondYAxis').value;
+  const tickers = Object.keys(_bondMetrics);
+  const colors = tickers.map(t => BDC_COLORS[t] || '#999');
+
+  const xMap = {
+    leverage: { label: 'Debt/Equity Leverage', fn: m => m.leverage, fmt: v => v.toFixed(2) + 'x' },
+    base_coverage: { label: 'Base Asset Coverage %', fn: m => m.baseCoverage, fmt: v => v.toFixed(0) + '%' },
+    stressed_coverage: { label: 'Stressed Asset Coverage %', fn: m => m.stressedCoverage, fmt: v => v.toFixed(0) + '%' },
+    unsecured_pct: { label: 'Unsecured Debt % of Total', fn: m => m.unsecuredPct, fmt: v => v.toFixed(0) + '%' },
+    loss_pct: { label: 'Stressed Portfolio Loss %', fn: m => m.lossPct, fmt: v => v.toFixed(1) + '%' },
+  };
+  const yMap = {
+    avg_spread: { label: 'Avg Credit Spread (bps)', fn: m => m.avgSpread, fmt: v => v.toFixed(0) + ' bps' },
+    avg_yield: { label: 'Avg Fair Yield (%)', fn: m => m.avgYield, fmt: v => v.toFixed(2) + '%' },
+    wavg_yield: { label: 'Wtd Avg Yield (%)', fn: m => m.wavgYield, fmt: v => v.toFixed(2) + '%' },
+    wavg_spread: { label: 'Wtd Avg Spread (bps)', fn: m => m.wavgSpread, fmt: v => v.toFixed(0) + ' bps' },
+  };
+  const xCfg = xMap[xSel] || xMap.leverage;
+  const yCfg = yMap[ySel] || yMap.avg_spread;
+
+  // Scatter plot
+  const scatterData = tickers.map((t, i) => ({
+    x: xCfg.fn(_bondMetrics[t]),
+    y: yCfg.fn(_bondMetrics[t]),
+    label: t,
+    backgroundColor: colors[i],
+    borderColor: colors[i],
+  }));
+  const scatterCtx = document.getElementById('bondScatterChart').getContext('2d');
+  if (bondScatterChart) bondScatterChart.destroy();
+  bondScatterChart = new Chart(scatterCtx, {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        data: scatterData,
+        pointRadius: 8,
+        pointHoverRadius: 10,
+        backgroundColor: colors,
+        borderColor: colors,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: xCfg.label + ' vs ' + yCfg.label, font: { size: 13 }, color: '#555' },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const d = ctx.raw;
+              const m = _bondMetrics[d.label];
+              return [
+                d.label + ' (' + m.rating + ')',
+                'X: ' + xCfg.fmt(d.x),
+                'Y: ' + yCfg.fmt(d.y),
+                m.bonds.length + ' bonds, $' + (m.totalAmt / 1e9).toFixed(1) + 'B outstanding',
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: xCfg.label, color: '#888', font: { size: 11 } }, ticks: { color: '#666' }, grid: { color: '#eee' } },
+        y: { title: { display: true, text: yCfg.label, color: '#888', font: { size: 11 } }, ticks: { color: '#666' }, grid: { color: '#eee' } },
+      }
+    },
+    plugins: [{
+      afterDraw(chart) {
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.font = '11px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        for (const ds of chart.data.datasets) {
+          for (let i = 0; i < ds.data.length; i++) {
+            const pt = chart.getDatasetMeta(0).data[i];
+            if (pt) {
+              ctx.fillStyle = ds.backgroundColor[i] || '#666';
+              ctx.fillText(ds.data[i].label, pt.x, pt.y - 10);
+            }
+          }
+        }
+        ctx.restore();
+      }
+    }]
+  });
+
+  // Bar chart: individual bond yields per BDC
+  const barLabels = [];
+  const barData = [];
+  const barColors = [];
+  const barBorders = [];
+  for (const t of tickers) {
+    const m = _bondMetrics[t];
+    for (const b of m.bonds) {
+      const shortName = b.name.replace(' Notes', '').replace(t + ' ', '');
+      barLabels.push(t + ' ' + shortName);
+      barData.push(b.fairYield);
+      barColors.push((BDC_COLORS[t] || '#999') + '99');
+      barBorders.push(BDC_COLORS[t] || '#999');
+    }
+  }
+  const barCtx = document.getElementById('bondBarChart').getContext('2d');
+  if (bondBarChart) bondBarChart.destroy();
+  bondBarChart = new Chart(barCtx, {
+    type: 'bar',
+    data: {
+      labels: barLabels,
+      datasets: [{
+        data: barData,
+        backgroundColor: barColors,
+        borderColor: barBorders,
+        borderWidth: 1,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: 'Individual Bond Fair Yields', font: { size: 13 }, color: '#555' },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.raw.toFixed(2) + '% yield'
+          }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Fair Yield (%)', color: '#888', font: { size: 11 } }, ticks: { color: '#666', callback: v => v.toFixed(1) + '%' }, grid: { color: '#eee' } },
+        y: { ticks: { color: '#555', font: { size: 10 } }, grid: { display: false } }
+      }
+    }
+  });
+  // Resize bar chart height based on number of bonds
+  const barCanvas = document.getElementById('bondBarChart');
+  barCanvas.parentElement.style.height = Math.max(300, barLabels.length * 22 + 60) + 'px';
+}
+
+function renderBondTable() {
+  if (!_bondMetrics) return;
+  const div = document.getElementById('bondTableContainer');
+  const tickers = Object.keys(_bondMetrics);
+  let html = '<table class="data-table"><thead><tr>';
+  html += '<th>BDC</th><th>Rating</th><th>Bond</th><th class="right">Outstanding</th><th class="right">Coupon</th><th class="right">Maturity</th><th class="right">Yrs</th><th class="right">Tsy Rate</th><th class="right">Fair Yield</th><th class="right">Spread</th><th class="right">Est. Price</th>';
+  html += '</tr></thead><tbody>';
+  for (const t of tickers) {
+    const m = _bondMetrics[t];
+    const ratingColor = m.isHY ? '#e67e22' : '#27ae60';
+    for (let i = 0; i < m.bonds.length; i++) {
+      const b = m.bonds[i];
+      const showBDC = i === 0;
+      html += '<tr>';
+      html += showBDC
+        ? `<td rowspan="${m.bonds.length}"><span class="badge" style="background:${BDC_COLORS[t] || '#999'}">${t}</span></td><td rowspan="${m.bonds.length}" style="color:${ratingColor};font-weight:600">${m.rating}</td>`
+        : '';
+      html += `<td>${b.name}</td>`;
+      html += `<td class="right">$${(b.amount / 1e6).toFixed(0)}M</td>`;
+      html += `<td class="right">${b.coupon.toFixed(3)}%</td>`;
+      html += `<td class="right" style="font-size:11px">${b.maturity}</td>`;
+      html += `<td class="right">${b.yearsToMat.toFixed(1)}</td>`;
+      html += `<td class="right" style="color:#888">${b.tsyRate.toFixed(2)}%</td>`;
+      html += `<td class="right" style="font-weight:600">${b.fairYield.toFixed(2)}%</td>`;
+      html += `<td class="right">${b.creditSpread} bps</td>`;
+      html += `<td class="right" style="color:${b.estPrice >= 100 ? '#27ae60' : '#c0392b'}">${b.estPrice.toFixed(2)}</td>`;
+      html += '</tr>';
+    }
+    // Summary row
+    html += `<tr style="background:#f8f6f0;font-weight:600;border-bottom:2px solid #ddd">`;
+    html += `<td colspan="3" style="text-align:right">${t} Weighted Avg</td>`;
+    html += `<td class="right">$${(m.totalAmt / 1e9).toFixed(1)}B</td>`;
+    html += `<td class="right">${(m.bonds.reduce((s, b) => s + b.coupon * b.amount, 0) / m.totalAmt).toFixed(3)}%</td>`;
+    html += `<td></td>`;
+    html += `<td class="right">${m.wavgMat.toFixed(1)}</td>`;
+    html += `<td></td>`;
+    html += `<td class="right">${m.wavgYield.toFixed(2)}%</td>`;
+    html += `<td class="right">${m.wavgSpread.toFixed(0)} bps</td>`;
+    html += `<td></td>`;
+    html += '</tr>';
+  }
+
+  // Benchmark row
+  const bm = DATA.bond_market;
+  html += `<tr style="background:#e8e8e4;font-style:italic"><td colspan="8" style="text-align:right">ICE BofA BBB Index OAS</td><td></td><td class="right">${bm.fred_bbb_oas ? (bm.fred_bbb_oas * 100).toFixed(0) : '--'} bps</td><td></td></tr>`;
+  html += `<tr style="background:#e8e8e4;font-style:italic"><td colspan="8" style="text-align:right">ICE BofA BB HY Index OAS</td><td></td><td class="right">${bm.fred_bb_oas ? (bm.fred_bb_oas * 100).toFixed(0) : '--'} bps</td><td></td></tr>`;
+
+  html += '</tbody></table>';
+  if (bm.as_of) document.getElementById('bondAsOf').textContent = '(FRED data as of ' + bm.as_of + ')';
+  div.innerHTML = html;
+}
+
+// Wire up axis selectors
+document.getElementById('bondXAxis').addEventListener('change', renderBondCharts);
+document.getElementById('bondYAxis').addEventListener('change', renderBondCharts);
+
+// Hook into recalculate to update bond charts when stress changes
+const _origRecalc = recalculate;
+recalculate = function() {
+  _origRecalc();
+  if (selectedBDC === 'ALL' && document.getElementById('bondMarketSection').style.display !== 'none') {
+    computeBondMetrics();
+    renderBondCharts();
+  }
+};
+
+// Initial render when stress tab loads
+setTimeout(() => {
+  if (selectedBDC === 'ALL') renderBondMarket();
+}, 500);
+
 (function() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#999;z-index:1000;pointer-events:none';
