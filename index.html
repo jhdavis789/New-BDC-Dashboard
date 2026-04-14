@@ -925,10 +925,10 @@
     <div id="bondMarketSection" style="display:none">
       <h2 class="section-title" style="margin-top:24px">BDC Bond Market <span class="info-btn" data-info="bondMarket">&#9432;</span> <span id="bondAsOf" style="font-size:11px;font-weight:400;color:#999"></span></h2>
       <div class="info-popup" data-popup="bondMarket" style="display:none">
-        <p><strong>Bond yields and spreads</strong> are calculated from each BDC's outstanding unsecured notes using coupon rates and maturities from SEC filings, priced against the live FRED treasury curve + ICE BofA credit index OAS.</p>
-        <p><strong>Credit spread</strong> = Fair yield &minus; maturity-matched treasury. <strong>Fair yield</strong> = treasury rate + index OAS (BBB for IG-rated, BB for HY-rated BDCs).</p>
-        <p>This uses index-level OAS as a baseline. Individual bonds may trade tighter or wider than the index depending on liquidity, deal size, and issuer-specific factors.</p>
-        <p style="font-size:11px;color:#999"><strong>Data sources:</strong> FRED (ICE BofA BBB/BB OAS, Treasury yields). Bond universe from SEC 10-K/10-Q filings.</p>
+        <p><strong>Actual bond trading data</strong> from FINRA TRACE (via Public.com / TradingView, T+1 close). Prices and yields-to-maturity are real last-trade data, not model estimates.</p>
+        <p><strong>Credit spread</strong> = market YTM &minus; maturity-matched treasury rate. Treasury curve interpolated from FRED (2yr/5yr/10yr, fetched live).</p>
+        <p>Spreads vary significantly by issuer: FSK (BB+) trades 100-120bps wide of ARCC (BBB). OBDC trades 50-70bps wide of ARCC at similar maturities despite similar ratings.</p>
+        <p style="font-size:11px;color:#999"><strong>Data sources:</strong> Bond prices/YTM from FINRA TRACE via Public.com &amp; TradingView. Treasury curve from FRED. CUSIPs from Public.com URL slugs &amp; OBDC IR page.</p>
       </div>
 
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
@@ -101346,10 +101346,54 @@ const DATA = {
   },
   "bond_market": {
     "ratings": {"ARCC":"BBB","BXSL":"BBB-","FSK":"BB+","GBDC":"BBB-","OBDC":"BBB-"},
-    "fred_bbb_oas": null,
-    "fred_bb_oas": null,
-    "fred_5yr_tsy": null,
-    "as_of": null
+    "as_of": "2026-04-11",
+    "source": "Public.com / TradingView (FINRA TRACE T+1)",
+    "trading": {
+      "ARCC": [
+        {"coupon":2.150,"maturity":"2026-07-15","price":99.28,"ytm":5.04,"amount":1000000000,"cusip":"04010LBA0"},
+        {"coupon":7.000,"maturity":"2027-01-15","price":101.16,"ytm":5.11,"amount":900000000,"cusip":"04010LBE2"},
+        {"coupon":2.875,"maturity":"2027-06-15","price":97.66,"ytm":4.94,"amount":500000000,"cusip":"04010LBD4"},
+        {"coupon":2.875,"maturity":"2028-06-15","price":95.10,"ytm":5.23,"amount":1250000000,"cusip":"04010LBB8"},
+        {"coupon":5.875,"maturity":"2029-03-01","price":100.59,"ytm":5.52,"amount":1000000000,"cusip":"04010LBF9"},
+        {"coupon":5.950,"maturity":"2029-07-15","price":100.89,"ytm":5.64,"amount":850000000,"cusip":"04010LBG7"},
+        {"coupon":5.500,"maturity":"2030-09-01","price":98.96,"ytm":5.77,"amount":750000000},
+        {"coupon":5.100,"maturity":"2031-01-15","price":97.04,"ytm":5.81,"amount":650000000},
+        {"coupon":3.200,"maturity":"2031-11-15","price":87.54,"ytm":5.85,"amount":700000000,"cusip":"04010LBC6"},
+        {"coupon":5.800,"maturity":"2032-03-08","price":99.29,"ytm":5.96,"amount":1000000000,"cusip":"04010LBH5"}
+      ],
+      "BXSL": [
+        {"coupon":2.750,"maturity":"2026-09-16","price":99.21,"ytm":4.57,"amount":699200000,"cusip":"09261XAE2"},
+        {"coupon":2.125,"maturity":"2027-02-15","price":97.14,"ytm":5.64,"amount":619340000},
+        {"coupon":5.875,"maturity":"2027-11-15","price":100.79,"ytm":5.32,"amount":400000000,"cusip":"09261XAH5"},
+        {"coupon":5.350,"maturity":"2028-04-13","price":99.72,"ytm":5.50,"amount":700000000,"cusip":"09261XAJ1"},
+        {"coupon":2.850,"maturity":"2028-09-30","price":93.87,"ytm":5.51,"amount":640000000,"cusip":"09261XAG7"},
+        {"coupon":5.250,"maturity":"2029-09-04","price":99.25,"ytm":5.48,"amount":400000000,"cusip":"09261XAK8"},
+        {"coupon":5.300,"maturity":"2030-06-30","price":97.41,"ytm":6.00,"amount":500000000},
+        {"coupon":5.125,"maturity":"2031-01-31","price":96.21,"ytm":5.93,"amount":500000000}
+      ],
+      "FSK": [
+        {"coupon":2.625,"maturity":"2027-01-15","price":97.12,"ytm":6.59,"amount":400000000,"cusip":"302635AH0"},
+        {"coupon":3.250,"maturity":"2027-07-15","price":96.65,"ytm":6.07,"amount":500000000,"cusip":"302635AL1"},
+        {"coupon":3.125,"maturity":"2028-10-12","price":92.66,"ytm":6.36,"amount":750000000,"cusip":"302635AK3"},
+        {"coupon":7.875,"maturity":"2029-01-15","price":102.57,"ytm":6.80,"amount":400000000,"cusip":"302635AM9"},
+        {"coupon":6.875,"maturity":"2029-08-15","price":99.90,"ytm":6.91,"amount":600000000,"cusip":"302635AN7"},
+        {"coupon":6.125,"maturity":"2030-01-15","price":97.31,"ytm":6.94,"amount":700000000,"cusip":"302635AP2"},
+        {"coupon":6.125,"maturity":"2031-01-15","price":96.43,"ytm":7.02,"amount":400000000,"cusip":"302635AQ0"}
+      ],
+      "GBDC": [
+        {"coupon":2.500,"maturity":"2026-08-24","price":98.82,"ytm":5.72,"amount":600000000,"cusip":"38173MAB8"},
+        {"coupon":2.050,"maturity":"2027-02-15","price":97.05,"ytm":5.70,"amount":350000000,"cusip":"38173MAC6"},
+        {"coupon":7.050,"maturity":"2028-12-05","price":102.84,"ytm":5.84,"amount":700000000,"cusip":"38173MAD4"},
+        {"coupon":6.000,"maturity":"2029-07-15","price":100.06,"ytm":5.97,"amount":750000000,"cusip":"38173MAE2"}
+      ],
+      "OBDC": [
+        {"coupon":3.400,"maturity":"2026-07-15","price":99.47,"ytm":5.51,"amount":1000000000,"cusip":"69121KAE4"},
+        {"coupon":2.625,"maturity":"2027-01-15","price":97.81,"ytm":5.62,"amount":500000000,"cusip":"69121KAF1"},
+        {"coupon":2.875,"maturity":"2028-06-11","price":93.06,"ytm":6.36,"amount":850000000,"cusip":"69121KAG9"},
+        {"coupon":5.950,"maturity":"2029-03-15","price":99.28,"ytm":6.23,"amount":1000000000,"cusip":"69121KAH7"},
+        {"coupon":6.200,"maturity":"2030-07-15","price":99.59,"ytm":6.31,"amount":500000000,"cusip":"69121KAJ3"}
+      ]
+    }
   }
 };
 
@@ -105081,12 +105125,11 @@ async function fetchFredData() {
     const tsy2 = parseLast(tsy2Res);
     const tsy5 = parseLast(tsy5Res);
     const tsy10 = parseLast(tsy10Res);
-    if (bbb) DATA.bond_market.fred_bbb_oas = bbb.value;
-    if (bb) DATA.bond_market.fred_bb_oas = bb.value;
+    if (bbb) DATA.bond_market._fred_bbb_oas = bbb.value;
+    if (bb) DATA.bond_market._fred_bb_oas = bb.value;
     if (tsy2 && tsy5 && tsy10) {
       DATA.bond_market.tsy_curve = { 2: tsy2.value, 5: tsy5.value, 10: tsy10.value };
     }
-    DATA.bond_market.as_of = (bbb || bb || tsy5 || {}).date || null;
     _fredLoaded = true;
   } catch (e) {
     console.warn('FRED fetch failed:', e);
@@ -105104,61 +105147,52 @@ function interpTsy(yearsToMaturity) {
 
 function computeBondMetrics() {
   const bm = DATA.bond_market;
-  const bbbOAS = bm.fred_bbb_oas || 1.04;
-  const bbOAS = bm.fred_bb_oas || 1.77;
-  const tickers = ['ARCC','BXSL','FSK','GBDC','OBDC'];
+  const trading = bm.trading || {};
+  const tickers = Object.keys(trading);
   const metrics = {};
 
   for (const t of tickers) {
     const cap = DATA.capital_structure[t];
     if (!cap) continue;
-    const instruments = cap.unsecured_instruments || [];
-    const rating = bm.ratings[t] || 'BBB-';
+    const rawBonds = trading[t] || [];
+    const rating = (bm.ratings || {})[t] || 'BBB-';
     const isHY = rating.startsWith('BB');
-    const indexOAS = isHY ? bbOAS : bbbOAS;
 
     const bonds = [];
-    for (const inst of instruments) {
-      if (inst.type !== 'unsecured_notes') continue;
-      const coupon = parseFloat(inst.rate) || 0;
-      const matDate = new Date(inst.maturity);
+    for (const b of rawBonds) {
+      const matDate = new Date(b.maturity);
       if (isNaN(matDate)) continue;
       const yearsToMat = Math.max(0.25, (matDate - new Date()) / (365.25 * 86400000));
       const tsyRate = interpTsy(yearsToMat);
-      const fairYield = tsyRate + indexOAS;
-      const creditSpread = (fairYield - tsyRate) * 100; // bps, = indexOAS * 100
-      // Simplified bond price: P ≈ C/y * (1 - 1/(1+y)^n) + 100/(1+y)^n
-      const y = fairYield / 100;
-      const c = coupon / 200; // semiannual coupon
-      const n = yearsToMat * 2; // semiannual periods
-      const yh = y / 2;
-      const pv = yh > 0 ? c / yh * (1 - 1 / Math.pow(1 + yh, n)) + 100 / Math.pow(1 + yh, n) : 100;
+      const creditSpread = Math.round((b.ytm - tsyRate) * 100); // bps
+      const matLabel = matDate.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
       bonds.push({
-        name: inst.name,
-        amount: inst.amount,
-        coupon,
-        maturity: inst.maturity,
+        name: b.coupon.toFixed(3) + '% ' + matLabel,
+        amount: b.amount,
+        coupon: b.coupon,
+        maturity: matLabel,
         yearsToMat: +yearsToMat.toFixed(2),
         tsyRate: +tsyRate.toFixed(3),
-        fairYield: +fairYield.toFixed(3),
-        creditSpread: +(indexOAS * 100).toFixed(0),
-        estPrice: +pv.toFixed(2),
+        marketPrice: b.price,
+        marketYield: b.ytm,
+        creditSpread,
+        cusip: b.cusip || null,
       });
     }
     if (!bonds.length) continue;
 
     const totalAmt = bonds.reduce((s, b) => s + b.amount, 0);
-    const avgYield = bonds.reduce((s, b) => s + b.fairYield, 0) / bonds.length;
-    const wavgYield = bonds.reduce((s, b) => s + b.fairYield * b.amount, 0) / totalAmt;
+    const avgYield = bonds.reduce((s, b) => s + b.marketYield, 0) / bonds.length;
+    const wavgYield = bonds.reduce((s, b) => s + b.marketYield * b.amount, 0) / totalAmt;
     const avgSpread = bonds.reduce((s, b) => s + b.creditSpread, 0) / bonds.length;
     const wavgSpread = bonds.reduce((s, b) => s + b.creditSpread * b.amount, 0) / totalAmt;
     const wavgMat = bonds.reduce((s, b) => s + b.yearsToMat * b.amount, 0) / totalAmt;
+    const wavgPrice = bonds.reduce((s, b) => s + b.marketPrice * b.amount, 0) / totalAmt;
 
     // Fundamental metrics
     const leverage = cap.total_debt > 0 && cap.equity > 0 ? cap.total_debt / cap.equity : 0;
     const baseCoverage = cap.total_debt > 0 ? (cap.total_assets / cap.total_debt) * 100 : 0;
     const unsecuredPct = cap.total_debt > 0 ? (cap.unsecured_debt / cap.total_debt) * 100 : 0;
-    // Stressed coverage and loss from computed stress
     let stressedCoverage = baseCoverage;
     let lossPct = 0;
     if (_computed && _computed.lossByBDC[t] != null) {
@@ -105169,8 +105203,8 @@ function computeBondMetrics() {
     }
 
     metrics[t] = {
-      bonds, rating, isHY, indexOAS,
-      totalAmt, avgYield, wavgYield, avgSpread, wavgSpread, wavgMat,
+      bonds, rating, isHY,
+      totalAmt, avgYield, wavgYield, avgSpread, wavgSpread, wavgMat, wavgPrice,
       leverage, baseCoverage, stressedCoverage, unsecuredPct, lossPct,
     };
   }
@@ -105181,13 +105215,12 @@ function computeBondMetrics() {
 function renderBondMarket() {
   const section = document.getElementById('bondMarketSection');
   if (!section) return;
-  // Only show on ALL tab
   if (selectedBDC !== 'ALL') { section.style.display = 'none'; return; }
   section.style.display = '';
 
+  // Fetch FRED treasury curve for spread calculations (non-blocking — renders immediately with fallback)
   if (!_fredLoaded) {
     fetchFredData().then(() => { computeBondMetrics(); renderBondCharts(); renderBondTable(); });
-    return;
   }
   computeBondMetrics();
   renderBondCharts();
@@ -105286,7 +105319,7 @@ function renderBondCharts() {
     }]
   });
 
-  // Bar chart: individual bond yields per BDC
+  // Bar chart: individual bond yields per BDC (actual market yields)
   const barLabels = [];
   const barData = [];
   const barColors = [];
@@ -105294,9 +105327,8 @@ function renderBondCharts() {
   for (const t of tickers) {
     const m = _bondMetrics[t];
     for (const b of m.bonds) {
-      const shortName = b.name.replace(' Notes', '').replace(t + ' ', '');
-      barLabels.push(t + ' ' + shortName);
-      barData.push(b.fairYield);
+      barLabels.push(t + ' ' + b.coupon.toFixed(1) + '% ' + b.maturity.split(',')[0]);
+      barData.push(b.marketYield);
       barColors.push((BDC_COLORS[t] || '#999') + '99');
       barBorders.push(BDC_COLORS[t] || '#999');
     }
@@ -105320,15 +105352,32 @@ function renderBondCharts() {
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        title: { display: true, text: 'Individual Bond Fair Yields', font: { size: 13 }, color: '#555' },
+        title: { display: true, text: 'Bond Yields to Maturity (TRACE)', font: { size: 13 }, color: '#555' },
         tooltip: {
           callbacks: {
-            label: ctx => ctx.raw.toFixed(2) + '% yield'
+            label: ctx => {
+              const idx = ctx.dataIndex;
+              let bondIdx = idx;
+              let bdcTicker = '';
+              for (const t of tickers) {
+                const m = _bondMetrics[t];
+                if (bondIdx < m.bonds.length) { bdcTicker = t; break; }
+                bondIdx -= m.bonds.length;
+              }
+              const bond = bdcTicker ? _bondMetrics[bdcTicker].bonds[bondIdx] : null;
+              if (!bond) return ctx.raw.toFixed(2) + '% YTM';
+              return [
+                ctx.raw.toFixed(2) + '% YTM',
+                'Price: $' + bond.marketPrice.toFixed(2),
+                'Spread: ' + bond.creditSpread + ' bps',
+                bond.cusip ? 'CUSIP: ' + bond.cusip : '',
+              ].filter(Boolean);
+            }
           }
         }
       },
       scales: {
-        x: { title: { display: true, text: 'Fair Yield (%)', color: '#888', font: { size: 11 } }, ticks: { color: '#666', callback: v => v.toFixed(1) + '%' }, grid: { color: '#eee' } },
+        x: { title: { display: true, text: 'Yield to Maturity (%)', color: '#888', font: { size: 11 } }, ticks: { color: '#666', callback: v => v.toFixed(1) + '%' }, grid: { color: '#eee' } },
         y: { ticks: { color: '#555', font: { size: 10 } }, grid: { display: false } }
       }
     }
@@ -105343,7 +105392,7 @@ function renderBondTable() {
   const div = document.getElementById('bondTableContainer');
   const tickers = Object.keys(_bondMetrics);
   let html = '<table class="data-table"><thead><tr>';
-  html += '<th>BDC</th><th>Rating</th><th>Bond</th><th class="right">Outstanding</th><th class="right">Coupon</th><th class="right">Maturity</th><th class="right">Yrs</th><th class="right">Tsy Rate</th><th class="right">Fair Yield</th><th class="right">Spread</th><th class="right">Est. Price</th>';
+  html += '<th>BDC</th><th>Rating</th><th>CUSIP</th><th class="right">Outstanding</th><th class="right">Coupon</th><th class="right">Maturity</th><th class="right">Yrs</th><th class="right">Tsy</th><th class="right">Price</th><th class="right">YTM</th><th class="right">Spread</th>';
   html += '</tr></thead><tbody>';
   for (const t of tickers) {
     const m = _bondMetrics[t];
@@ -105351,42 +105400,47 @@ function renderBondTable() {
     for (let i = 0; i < m.bonds.length; i++) {
       const b = m.bonds[i];
       const showBDC = i === 0;
+      const priceColor = b.marketPrice >= 100 ? '#27ae60' : b.marketPrice >= 95 ? '#e67e22' : '#c0392b';
       html += '<tr>';
       html += showBDC
-        ? `<td rowspan="${m.bonds.length}"><span class="badge" style="background:${BDC_COLORS[t] || '#999'}">${t}</span></td><td rowspan="${m.bonds.length}" style="color:${ratingColor};font-weight:600">${m.rating}</td>`
+        ? `<td rowspan="${m.bonds.length + 1}"><span class="badge" style="background:${BDC_COLORS[t] || '#999'}">${t}</span></td><td rowspan="${m.bonds.length + 1}" style="color:${ratingColor};font-weight:600">${m.rating}</td>`
         : '';
-      html += `<td>${b.name}</td>`;
+      html += `<td style="font-family:monospace;font-size:11px;color:#888">${b.cusip || '--'}</td>`;
       html += `<td class="right">$${(b.amount / 1e6).toFixed(0)}M</td>`;
       html += `<td class="right">${b.coupon.toFixed(3)}%</td>`;
       html += `<td class="right" style="font-size:11px">${b.maturity}</td>`;
       html += `<td class="right">${b.yearsToMat.toFixed(1)}</td>`;
       html += `<td class="right" style="color:#888">${b.tsyRate.toFixed(2)}%</td>`;
-      html += `<td class="right" style="font-weight:600">${b.fairYield.toFixed(2)}%</td>`;
-      html += `<td class="right">${b.creditSpread} bps</td>`;
-      html += `<td class="right" style="color:${b.estPrice >= 100 ? '#27ae60' : '#c0392b'}">${b.estPrice.toFixed(2)}</td>`;
+      html += `<td class="right" style="color:${priceColor};font-weight:500">$${b.marketPrice.toFixed(2)}</td>`;
+      html += `<td class="right" style="font-weight:600">${b.marketYield.toFixed(2)}%</td>`;
+      html += `<td class="right" style="font-weight:600">${b.creditSpread > 0 ? '+' : ''}${b.creditSpread} bps</td>`;
       html += '</tr>';
     }
     // Summary row
     html += `<tr style="background:#f8f6f0;font-weight:600;border-bottom:2px solid #ddd">`;
-    html += `<td colspan="3" style="text-align:right">${t} Weighted Avg</td>`;
+    html += `<td colspan="2" style="text-align:right">Wtd Avg</td>`;
     html += `<td class="right">$${(m.totalAmt / 1e9).toFixed(1)}B</td>`;
-    html += `<td class="right">${(m.bonds.reduce((s, b) => s + b.coupon * b.amount, 0) / m.totalAmt).toFixed(3)}%</td>`;
+    html += `<td class="right">${(m.bonds.reduce((s, b) => s + b.coupon * b.amount, 0) / m.totalAmt).toFixed(2)}%</td>`;
     html += `<td></td>`;
-    html += `<td class="right">${m.wavgMat.toFixed(1)}</td>`;
+    html += `<td class="right">${m.wavgMat.toFixed(1)}yr</td>`;
     html += `<td></td>`;
+    html += `<td class="right">$${m.wavgPrice.toFixed(2)}</td>`;
     html += `<td class="right">${m.wavgYield.toFixed(2)}%</td>`;
-    html += `<td class="right">${m.wavgSpread.toFixed(0)} bps</td>`;
-    html += `<td></td>`;
+    html += `<td class="right">${m.wavgSpread > 0 ? '+' : ''}${m.wavgSpread.toFixed(0)} bps</td>`;
     html += '</tr>';
   }
 
-  // Benchmark row
+  // Benchmark rows from FRED
   const bm = DATA.bond_market;
-  html += `<tr style="background:#e8e8e4;font-style:italic"><td colspan="8" style="text-align:right">ICE BofA BBB Index OAS</td><td></td><td class="right">${bm.fred_bbb_oas ? (bm.fred_bbb_oas * 100).toFixed(0) : '--'} bps</td><td></td></tr>`;
-  html += `<tr style="background:#e8e8e4;font-style:italic"><td colspan="8" style="text-align:right">ICE BofA BB HY Index OAS</td><td></td><td class="right">${bm.fred_bb_oas ? (bm.fred_bb_oas * 100).toFixed(0) : '--'} bps</td><td></td></tr>`;
+  if (bm._fred_bbb_oas || bm._fred_bb_oas) {
+    html += `<tr style="background:#e8e8e4;font-style:italic"><td colspan="9" style="text-align:right">ICE BofA BBB Index OAS</td><td></td><td class="right">${bm._fred_bbb_oas ? (bm._fred_bbb_oas * 100).toFixed(0) : '--'} bps</td></tr>`;
+    html += `<tr style="background:#e8e8e4;font-style:italic"><td colspan="9" style="text-align:right">ICE BofA BB HY Index OAS</td><td></td><td class="right">${bm._fred_bb_oas ? (bm._fred_bb_oas * 100).toFixed(0) : '--'} bps</td></tr>`;
+  }
 
   html += '</tbody></table>';
-  if (bm.as_of) document.getElementById('bondAsOf').textContent = '(FRED data as of ' + bm.as_of + ')';
+  const asOf = bm.as_of || '';
+  const src = bm.source || '';
+  document.getElementById('bondAsOf').textContent = asOf ? '(prices as of ' + asOf + (src ? ' via ' + src : '') + ')' : '';
   div.innerHTML = html;
 }
 
