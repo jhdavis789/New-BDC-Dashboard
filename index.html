@@ -501,6 +501,12 @@
   .security-row:last-child td,
   .security-row:not(.visible) + .company-row td { border-bottom: 1px solid #eee; }
   .security-row td:first-child { padding-left: 28px; }
+  .pos-link {
+    display: inline-block; cursor: pointer; color: #7c9eb2; font-size: 11px;
+    margin-left: 4px; opacity: 0.5; transition: opacity 0.15s;
+  }
+  .pos-link:hover { opacity: 1; color: #3b6e8f; }
+  tr:hover .pos-link { opacity: 0.8; }
   .na-badge {
     display: inline-block; padding: 0 4px; border-radius: 3px;
     font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
@@ -119259,7 +119265,12 @@ function updateStacks() {
         html += '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:4px 8px;border-bottom:1px solid #ddd;color:#666">Segment</th><th style="text-align:right;padding:4px 8px;border-bottom:1px solid #ddd;color:#666">$</th><th style="text-align:right;padding:4px 8px;border-bottom:1px solid #ddd;color:#666">%</th></tr></thead><tbody>';
         for (const seg of b.segments) {
           const pct = b.total > 0 ? (seg.value / b.total * 100) : 0;
-          html += `<tr><td style="padding:3px 8px;border-bottom:1px solid #eee"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${seg.color};margin-right:6px;vertical-align:middle"></span>${seg.label}</td><td style="text-align:right;padding:3px 8px;border-bottom:1px solid #eee">${fmtDollar(seg.value)}</td><td style="text-align:right;padding:3px 8px;border-bottom:1px solid #eee">${pct.toFixed(1)}%</td></tr>`;
+          const _segLabel = seg.label.replace(/'/g, "\\'");
+          const isSeniority = section === 'By Seniority';
+          const isSector = section === 'By Sector';
+          const goOpts = isSeniority ? `{tranche:'${_segLabel}',bdc:'${ticker}'}` : isSector ? `{sector:'${_segLabel}',bdc:'${ticker}'}` : null;
+          const linkAttr = goOpts ? ` style="cursor:pointer" onclick="goToPosition(${goOpts});document.getElementById('barModal').style.display='none'" title="View in Positions tab"` : '';
+          html += `<tr${linkAttr}><td style="padding:3px 8px;border-bottom:1px solid #eee"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${seg.color};margin-right:6px;vertical-align:middle"></span>${seg.label}${goOpts ? ' <span class="pos-link">&#8599;</span>' : ''}</td><td style="text-align:right;padding:3px 8px;border-bottom:1px solid #eee">${fmtDollar(seg.value)}</td><td style="text-align:right;padding:3px 8px;border-bottom:1px solid #eee">${pct.toFixed(1)}%</td></tr>`;
         }
         html += `<tr style="font-weight:600"><td style="padding:4px 8px">Total</td><td style="text-align:right;padding:4px 8px">${fmtDollar(b.total)}</td><td style="text-align:right;padding:4px 8px">100.0%</td></tr>`;
         html += '</tbody></table>';
@@ -119387,8 +119398,10 @@ function renderPIKTab() {
       `<span class="badge" style="background:${BDC_COLORS[t] || '#999'}">${t}</span>`
     ).join('');
     const wPik = c.wt_avg_pik;
+    const _pikCName = c.name.replace(/'/g, "\\'");
+    const _pikGoLink = `<span class="pos-link" onclick="event.stopPropagation();goToPosition({search:'${_pikCName}'})" title="View all positions for this company">&#8599;</span>`;
     html += `<tr class="company-row" data-group="pik-${ci}">`;
-    html += `<td><span class="expand-caret"></span>${c.name}<span class="sec-count">(${secs.length})</span></td>`;
+    html += `<td><span class="expand-caret"></span>${c.name}<span class="sec-count">(${secs.length})</span>${_pikGoLink}</td>`;
     html += `<td>${badgesHTML}</td>`;
     html += `<td>${c.sector || '--'}</td>`;
     html += `<td class="right">${fmtPct(wPik)}</td>`;
@@ -119401,8 +119414,9 @@ function renderPIKTab() {
       const rateDesc = s.ref_rate && s.spread_bps ? `${s.ref_rate}+${Math.round(s.spread_bps)}` : '--';
       const pikHTML = s.pik_rate > 0 ? `<span class="pik-badge active">${fmtPct(s.pik_rate)}</span>` : '--';
       const naHTML = s.is_non_accrual ? '<span class="na-badge yes">NA</span>' : '';
+      const _cName = c.name.replace(/'/g, "\\'");
       html += `<tr class="security-row" data-parent="pik-${ci}">`;
-      html += `<td>${s.type} — ${rateDesc}${s.maturity ? ' · mat ' + s.maturity : ''}</td>`;
+      html += `<td>${s.type} — ${rateDesc}${s.maturity ? ' · mat ' + s.maturity : ''} <span class="pos-link" onclick="event.stopPropagation();goToPosition({search:'${_cName}',bdc:'${s.ticker}'})" title="View in Positions tab">&#8599;</span></td>`;
       html += `<td><span class="badge" style="background:${BDC_COLORS[s.ticker] || '#999'}">${s.ticker}</span></td>`;
       html += `<td>${naHTML}</td>`;
       html += `<td class="right">${pikHTML}</td>`;
@@ -119664,8 +119678,10 @@ function renderNATab() {
     const badgesHTML = tickers.map(t =>
       `<span class="badge" style="background:${BDC_COLORS[t] || '#999'}">${t}</span>`
     ).join('');
+    const _naGoName = c.name.replace(/'/g, "\\'");
+    const _naGoLink = `<span class="pos-link" onclick="event.stopPropagation();goToPosition({search:'${_naGoName}'})" title="View all positions for this company">&#8599;</span>`;
     html += `<tr class="company-row" data-group="na-${ci}">`;
-    html += `<td><span class="expand-caret"></span>${c.name}<span class="sec-count">(${secs.length})</span></td>`;
+    html += `<td><span class="expand-caret"></span>${c.name}<span class="sec-count">(${secs.length})</span>${_naGoLink}</td>`;
     html += `<td>${badgesHTML}</td>`;
     html += `<td>${c.sector || '--'}</td>`;
     html += `<td class="right">${naCount} / ${secs.length}</td>`;
@@ -119674,13 +119690,14 @@ function renderNATab() {
     html += `<td class="right ${mtmClass}">${mtm != null ? fmtPct(mtm) : '--'}</td>`;
     html += '</tr>';
     // Detail rows for each security
+    const _naCName = c.name.replace(/'/g, "\\'");
     for (const s of secs) {
       const sMtmClass = s.mtm_pct == null ? '' : (s.mtm_pct < 0 ? 'mtm-neg' : 'mtm-pos');
       const rateDesc = s.ref_rate && s.spread_bps ? `${s.ref_rate}+${Math.round(s.spread_bps)}` : '--';
       const naHTML = s.is_non_accrual ? '<span class="na-badge yes">Non-Accrual</span>' : '<span class="na-badge no">Accruing</span>';
       const pikHTML = s.pik_rate > 0 ? `<span class="pik-badge active">PIK ${fmtPct(s.pik_rate)}</span>` : '';
       html += `<tr class="security-row" data-parent="na-${ci}">`;
-      html += `<td>${s.type} — ${rateDesc}${s.maturity ? ' · mat ' + s.maturity : ''}</td>`;
+      html += `<td>${s.type} — ${rateDesc}${s.maturity ? ' · mat ' + s.maturity : ''} <span class="pos-link" onclick="event.stopPropagation();goToPosition({search:'${_naCName}',bdc:'${s.ticker}'})" title="View in Positions tab">&#8599;</span></td>`;
       html += `<td><span class="badge" style="background:${BDC_COLORS[s.ticker] || '#999'}">${s.ticker}</span> ${naHTML} ${pikHTML}</td>`;
       html += `<td>${s.category || '--'}</td>`;
       html += `<td class="right">${s.par ? fmtDollar(s.par) + ' par' : '--'}</td>`;
@@ -119712,6 +119729,27 @@ document.getElementById('bdcTabs').addEventListener('click', e => {
   document.querySelectorAll('#naToggle .toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === naMode));
   refreshAll();
 });
+
+// ── Cross-link: navigate to Positions tab with filters pre-set ──
+function goToPosition(opts) {
+  // opts: { search, bdc, sector, tranche }
+  selectedView = 'positions';
+  document.querySelectorAll('#viewTabs button').forEach(b => b.classList.toggle('active', b.dataset.view === 'positions'));
+  document.getElementById('panel-stress').classList.toggle('active', false);
+  document.getElementById('panel-pik').classList.toggle('active', false);
+  document.getElementById('panel-liquidity').classList.toggle('active', false);
+  document.getElementById('panel-positions').classList.toggle('active', true);
+  const allBtn = document.querySelector('#bdcTabs button[data-bdc="ALL"]');
+  allBtn.style.display = '';
+  if (opts.search != null) document.getElementById('posSearch').value = opts.search;
+  if (opts.bdc) document.getElementById('posFilterBDC').value = opts.bdc;
+  else document.getElementById('posFilterBDC').value = '';
+  if (opts.sector) document.getElementById('posFilterSector').value = opts.sector;
+  if (opts.tranche) document.getElementById('posFilterTranche').value = opts.tranche;
+  posPage = 0;
+  renderPositionsTab();
+  document.getElementById('panel-positions').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
 
 document.getElementById('viewTabs').addEventListener('click', e => {
   if (!e.target.dataset.view) return;
