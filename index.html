@@ -935,6 +935,15 @@
       <div class="info-popup" data-popup="bondMarket" style="display:none">
         <p><strong>Actual bond trading data</strong> from FINRA TRACE (via Public.com / TradingView, T+1 close). Prices and yields-to-maturity are real last-trade data, not model estimates.</p>
         <p><strong>Credit spread</strong> = market YTM &minus; maturity-matched treasury rate. Treasury curve interpolated from FRED (2yr/5yr/10yr, fetched live).</p>
+        <p style="margin-top:8px"><strong>X-axis metrics explained:</strong></p>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;margin:4px 0 8px">
+          <tr style="border-bottom:1px solid #eee"><td style="padding:3px 0;color:#555;font-weight:600;white-space:nowrap;vertical-align:top">Debt/Equity Leverage</td><td style="padding:3px 0 3px 8px;color:#777">Total debt / equity. Higher = more levered.</td></tr>
+          <tr style="border-bottom:1px solid #eee"><td style="padding:3px 0;color:#555;font-weight:600;white-space:nowrap;vertical-align:top">Equity Cushion</td><td style="padding:3px 0 3px 8px;color:#777">Equity / total assets. How far assets can fall before any debt is impaired. BDC regulatory min is ~33% (150% asset coverage).</td></tr>
+          <tr style="border-bottom:1px solid #eee"><td style="padding:3px 0;color:#555;font-weight:600;white-space:nowrap;vertical-align:top">Asset Coverage: Total Debt</td><td style="padding:3px 0 3px 8px;color:#777">Total assets / total borrowings. BDC regulatory minimum is 150%. This is the standard 1940 Act coverage test.</td></tr>
+          <tr style="border-bottom:1px solid #eee"><td style="padding:3px 0;color:#555;font-weight:600;white-space:nowrap;vertical-align:top">Coverage: All Liabilities</td><td style="padding:3px 0 3px 8px;color:#777">Total assets / total liabilities (debt + other liabilities like payables, deferred income). Stricter than the debt-only coverage.</td></tr>
+          <tr style="border-bottom:1px solid #eee"><td style="padding:3px 0;color:#555;font-weight:600;white-space:nowrap;vertical-align:top">Unsecured Bond Coverage</td><td style="padding:3px 0 3px 8px;color:#777">(Total assets &minus; secured debt &minus; other liabilities) / unsecured debt. The pool available to unsecured bondholders after senior claims. This is what you care about as an unsecured bondholder.</td></tr>
+          <tr style="border-bottom:1px solid #eee"><td style="padding:3px 0;color:#555;font-weight:600;white-space:nowrap;vertical-align:top">Unsecured Bond Recovery %</td><td style="padding:3px 0 3px 8px;color:#777">Stressed version of unsecured coverage, capped at 100%. The actual cents-on-the-dollar unsecured bondholders would receive in the stress scenario.</td></tr>
+        </table>
         <p>Spreads vary significantly by issuer: FSK (BB+) trades 100-120bps wide of ARCC (BBB). OBDC trades 50-70bps wide of ARCC at similar maturities despite similar ratings.</p>
         <p style="font-size:11px;color:#999"><strong>Data sources:</strong> Bond prices/YTM from FINRA TRACE via Public.com &amp; TradingView. Treasury curve from FRED. CUSIPs from Public.com URL slugs &amp; OBDC IR page.</p>
       </div>
@@ -943,9 +952,15 @@
         <span style="font-size:12px;color:#888;font-weight:500">Chart:</span>
         <select id="bondXAxis" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;background:#fff">
           <option value="leverage">Debt/Equity Leverage</option>
-          <option value="base_coverage">Base Asset Coverage %</option>
-          <option value="stressed_coverage">Stressed Asset Coverage %</option>
-          <option value="unsecured_pct">Unsecured Debt %</option>
+          <option value="equity_cushion">Equity Cushion (% of Assets)</option>
+          <option value="base_coverage">Asset Coverage: Total Debt</option>
+          <option value="stressed_coverage">Stressed Asset Coverage: Total Debt</option>
+          <option value="total_liab_coverage">Asset Coverage: All Liabilities</option>
+          <option value="stressed_liab_coverage">Stressed Coverage: All Liabilities</option>
+          <option value="unsecured_coverage">Unsecured Bond Coverage (base)</option>
+          <option value="stressed_unsec_coverage">Unsecured Bond Coverage (stressed)</option>
+          <option value="stressed_unsec_recovery">Unsecured Bond Recovery %</option>
+          <option value="unsecured_pct">Unsecured Debt % of Total</option>
           <option value="loss_pct">Stressed Portfolio Loss %</option>
         </select>
         <span style="font-size:12px;color:#888">vs</span>
@@ -125494,22 +125509,44 @@ function computeBondMetrics() {
     const wavgPrice = bonds.reduce((s, b) => s + b.marketPrice * b.amount, 0) / totalAmt;
 
     // Fundamental metrics
-    const leverage = cap.total_debt > 0 && cap.equity > 0 ? cap.total_debt / cap.equity : 0;
-    const baseCoverage = cap.total_debt > 0 ? (cap.total_assets / cap.total_debt) * 100 : 0;
-    const unsecuredPct = cap.total_debt > 0 ? (cap.unsecured_debt / cap.total_debt) * 100 : 0;
+    const totalDebt = cap.total_debt || (cap.secured_debt + cap.unsecured_debt);
+    const totalLiab = cap.total_liabilities || (totalDebt + cap.other_liabilities);
+    const leverage = totalDebt > 0 && cap.equity > 0 ? totalDebt / cap.equity : 0;
+    // Asset coverage: total assets / total debt (BDC regulatory test is 150% min)
+    const baseCoverage = totalDebt > 0 ? (cap.total_assets / totalDebt) * 100 : 0;
+    // Total liabilities coverage: total assets / all liabilities (debt + other)
+    const totalLiabCoverage = totalLiab > 0 ? (cap.total_assets / totalLiab) * 100 : 0;
+    const unsecuredPct = totalDebt > 0 ? (cap.unsecured_debt / totalDebt) * 100 : 0;
+    // Equity cushion: equity / total assets (how far assets can fall before debt impairment)
+    const equityCushion = cap.total_assets > 0 ? (cap.equity / cap.total_assets) * 100 : 0;
+    // Unsecured bondholder coverage: (total assets - secured debt - other liab) / unsecured debt
+    const poolForUnsecured = Math.max(0, cap.total_assets - cap.secured_debt - cap.other_liabilities);
+    const unsecuredCoverage = cap.unsecured_debt > 0 ? (poolForUnsecured / cap.unsecured_debt) * 100 : 0;
+
     let stressedCoverage = baseCoverage;
+    let stressedLiabCoverage = totalLiabCoverage;
+    let stressedUnsecuredCoverage = unsecuredCoverage;
+    let stressedUnsecuredRecovery = 100;
     let lossPct = 0;
     if (_computed && _computed.lossByBDC[t] != null) {
       const loss = _computed.lossByBDC[t];
       const postAssets = cap.total_assets - loss;
-      stressedCoverage = cap.total_debt > 0 ? (postAssets / cap.total_debt) * 100 : 0;
+      stressedCoverage = totalDebt > 0 ? (postAssets / totalDebt) * 100 : 0;
+      stressedLiabCoverage = totalLiab > 0 ? (postAssets / totalLiab) * 100 : 0;
       lossPct = cap.total_investments > 0 ? (loss / cap.total_investments) * 100 : 0;
+      // Stressed unsecured bond coverage: waterfall (secured first, then unsecured)
+      const postPoolForUnsecured = Math.max(0, postAssets - cap.secured_debt - cap.other_liabilities);
+      stressedUnsecuredCoverage = cap.unsecured_debt > 0 ? (postPoolForUnsecured / cap.unsecured_debt) * 100 : 0;
+      // Actual recovery: capped at 100%
+      stressedUnsecuredRecovery = Math.min(100, stressedUnsecuredCoverage);
     }
 
     metrics[t] = {
       bonds, rating, isHY,
       totalAmt, avgYield, wavgYield, avgSpread, wavgSpread, wavgMat, wavgPrice,
       leverage, baseCoverage, stressedCoverage, unsecuredPct, lossPct,
+      totalLiabCoverage, stressedLiabCoverage, equityCushion,
+      unsecuredCoverage, stressedUnsecuredCoverage, stressedUnsecuredRecovery,
     };
   }
   _bondMetrics = metrics;
@@ -125540,8 +125577,14 @@ function renderBondCharts() {
 
   const xMap = {
     leverage: { label: 'Debt/Equity Leverage', fn: m => m.leverage, fmt: v => v.toFixed(2) + 'x' },
-    base_coverage: { label: 'Base Asset Coverage %', fn: m => m.baseCoverage, fmt: v => v.toFixed(0) + '%' },
-    stressed_coverage: { label: 'Stressed Asset Coverage %', fn: m => m.stressedCoverage, fmt: v => v.toFixed(0) + '%' },
+    equity_cushion: { label: 'Equity Cushion (% of Assets)', fn: m => m.equityCushion, fmt: v => v.toFixed(1) + '%' },
+    base_coverage: { label: 'Asset Coverage: Total Debt', fn: m => m.baseCoverage, fmt: v => v.toFixed(0) + '%' },
+    stressed_coverage: { label: 'Stressed Asset Coverage: Total Debt', fn: m => m.stressedCoverage, fmt: v => v.toFixed(0) + '%' },
+    total_liab_coverage: { label: 'Asset Coverage: All Liabilities', fn: m => m.totalLiabCoverage, fmt: v => v.toFixed(0) + '%' },
+    stressed_liab_coverage: { label: 'Stressed Coverage: All Liabilities', fn: m => m.stressedLiabCoverage, fmt: v => v.toFixed(0) + '%' },
+    unsecured_coverage: { label: 'Unsecured Bond Coverage (base)', fn: m => m.unsecuredCoverage, fmt: v => v.toFixed(0) + '%' },
+    stressed_unsec_coverage: { label: 'Unsecured Bond Coverage (stressed)', fn: m => m.stressedUnsecuredCoverage, fmt: v => v.toFixed(0) + '%' },
+    stressed_unsec_recovery: { label: 'Unsecured Bond Recovery %', fn: m => m.stressedUnsecuredRecovery, fmt: v => v.toFixed(0) + '%' },
     unsecured_pct: { label: 'Unsecured Debt % of Total', fn: m => m.unsecuredPct, fmt: v => v.toFixed(0) + '%' },
     loss_pct: { label: 'Stressed Portfolio Loss %', fn: m => m.lossPct, fmt: v => v.toFixed(1) + '%' },
   };
@@ -125776,7 +125819,7 @@ setTimeout(() => {
 (function() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#999;z-index:1000;pointer-events:none';
-  const deployTs = 'Apr 15, 2026 9:31 AM ';
+  const deployTs = 'Apr 15, 2026 10:11 AM ';
   if (deployTs.startsWith('__')) {
     el.textContent = 'Local dev';
   } else {
