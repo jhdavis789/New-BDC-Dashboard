@@ -161827,7 +161827,15 @@ function buildProjDetail(ticker, key) {
       for (const yr of years) vals[yr] = u;
       const included = !isLineExcluded('revolverCapacity', inst.name);
       if (included) for (const yr of years) totalsByYear[yr] += u;
-      const meta = [inst.interest_rate, inst.maturity_date ? 'mat. ' + inst.maturity_date : ''].filter(Boolean).join(' \u00b7 ');
+      const commit = inst.total_commitment || 0;
+      const drawn = inst.outstanding || 0;
+      const capStr = commit > 0
+        ? 'max ' + fmtDollar(commit) + ' \u00b7 drawn ' + fmtDollar(drawn) +
+          ' \u00b7 undrawn ' + fmtDollar(inst.undrawn || 0) +
+          ' (' + Math.round((drawn / commit) * 100) + '% utilised)'
+        : 'drawn ' + fmtDollar(drawn) + ' \u00b7 undrawn ' + fmtDollar(inst.undrawn || 0) +
+          ' (commitment not disclosed)';
+      const meta = [capStr, inst.interest_rate, inst.maturity_date ? 'mat. ' + inst.maturity_date : ''].filter(Boolean).join(' \u00b7 ');
       rows.push({ parentKey: 'revolverCapacity', lineKey: inst.name,
         label: inst.name, values: vals, indent: true, note: meta });
     }
@@ -162270,6 +162278,8 @@ function buildProjDetail(ticker, key) {
       if (rev.repaid) continue;
       const liqInst = (liq.debt_instruments || []).find(d => d.name === rev.name) || rev;
       const rateStr = liqInst.interest_rate || '';
+      const facilityCommit = liqInst.total_commitment || 0;
+      const facilityDrawn = liqInst.outstanding || 0;
       if (rev.maturity_schedule && rev.maturity_schedule.length > 0) {
         for (const tr of rev.maturity_schedule) {
           const tyr = tr.maturity_year;
@@ -162278,8 +162288,13 @@ function buildProjDetail(ticker, key) {
           const lineKey = rev.name + ' @ ' + (tr.maturity_date || tyr);
           const label = rev.name + ' \u2014 ' + (tr.maturity_date || tyr) + ' tranche';
           if (!isLineExcluded('revolverRepayment', lineKey)) effectiveAnnual[tyr] = (effectiveAnnual[tyr] || 0) + (tr.outstanding_dollars || 0);
+          const trCommit = tr.commitment_dollars || 0;
+          const trDrawn = tr.outstanding_dollars || 0;
+          const trCapStr = trCommit > 0
+            ? 'max ' + fmtDollar(trCommit) + ' \u00b7 drawn ' + fmtDollar(trDrawn)
+            : 'drawn ' + fmtDollar(trDrawn);
           rows.push({ parentKey: 'revolverRepayment', lineKey, label, values: vals, indent: true,
-            note: (tr.interest_rate || rateStr) + ' \u00b7 $' + ((tr.outstanding_dollars || 0) / 1e6).toFixed(1) + 'M drawn' });
+            note: trCapStr + ' \u00b7 ' + (tr.interest_rate || rateStr) });
         }
         continue;
       }
@@ -162289,8 +162304,13 @@ function buildProjDetail(ticker, key) {
       const vals = {}; for (const yr of years) vals[yr] = yr >= matYr ? outstanding : 0;
       const matStr = liqInst.maturity_date || String(matYr);
       if (!isLineExcluded('revolverRepayment', rev.name)) effectiveAnnual[matYr] = (effectiveAnnual[matYr] || 0) + outstanding;
+      const capStr = facilityCommit > 0
+        ? 'max ' + fmtDollar(facilityCommit) + ' \u00b7 drawn ' + fmtDollar(facilityDrawn) +
+          ' (' + Math.round((facilityDrawn / facilityCommit) * 100) + '% utilised)'
+        : 'drawn ' + fmtDollar(facilityDrawn) + ' (commitment not disclosed)';
       rows.push({ parentKey: 'revolverRepayment', lineKey: rev.name,
-        label: rev.name, values: vals, indent: true, note: rateStr ? rateStr + ' \u00b7 ' + matStr : matStr });
+        label: rev.name, values: vals, indent: true,
+        note: [capStr, rateStr, matStr].filter(Boolean).join(' \u00b7 ') });
     }
     if (rows.length === 0) {
       h += rawRow('<div style="color:#999;font-size:11px;padding:4px 0">No revolving facility maturities in projection window</div>');
@@ -163593,7 +163613,7 @@ setTimeout(() => {
 (function() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#999;z-index:1000;pointer-events:none';
-  const deployTs = 'Apr 17, 2026 6:01 AM ';
+  const deployTs = 'Apr 17, 2026 6:03 AM ';
   if (deployTs.startsWith('__')) {
     el.textContent = 'Local dev';
   } else {
