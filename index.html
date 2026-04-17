@@ -160975,11 +160975,20 @@ function computeCashFlowProjection(ticker) {
   for (const entry of incremental) {
     const yr = entry.year;
 
-    // Cash on hand: subtract excluded components from cash_detail (year 1 only)
+    // Cash on hand: if a component breakdown is available, rebuild from scratch
+    // so the inflows row matches the tooltip exactly. Summing from the detail is
+    // the source of truth — we cannot "subtract excluded components" from
+    // cf.cash_on_hand, because cf.cash_on_hand already excludes restricted cash
+    // upstream in stress_test.py, so subtracting a restricted key here would
+    // double-exclude. When no detail is populated, fall back to cf.cash_on_hand.
     if (yr === firstYr) {
       const cd = liq.cash_detail || {};
-      for (const k of Object.keys(cd)) {
-        if (isLineExcluded('cashOnHand', k)) entry.inflows.cashOnHand -= cd[k];
+      if (Object.keys(cd).length > 0) {
+        let total = 0;
+        for (const k of Object.keys(cd)) {
+          if (!isLineExcluded('cashOnHand', k)) total += cd[k];
+        }
+        entry.inflows.cashOnHand = total;
       }
       if (entry.inflows.cashOnHand < 0) entry.inflows.cashOnHand = 0;
     }
@@ -163613,7 +163622,7 @@ setTimeout(() => {
 (function() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#999;z-index:1000;pointer-events:none';
-  const deployTs = 'Apr 17, 2026 6:03 AM ';
+  const deployTs = 'Apr 17, 2026 6:39 AM ';
   if (deployTs.startsWith('__')) {
     el.textContent = 'Local dev';
   } else {
