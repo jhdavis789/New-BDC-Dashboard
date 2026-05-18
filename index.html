@@ -870,7 +870,7 @@
      A placeholder div preserves the slot in the grid while the box is
      pinned so the layout doesn't jump. */
   .controls-panel.pin-active { align-items: start; }
-  .controls-panel.pin-active > .control-box.pin-target.is-pinned {
+  .controls-panel.pin-active > .control-box.is-pinned {
     position: fixed;
     top: var(--pin-top, 60px);
     z-index: 99;
@@ -405913,7 +405913,7 @@ function renderOverlapTab() {
 (function() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#999;z-index:1000;pointer-events:none';
-  const deployTs = 'May 18, 2026 2:30 PM PDT · v3 data (PARSER_V2)';
+  const deployTs = 'May 18, 2026 2:34 PM PDT · v3 data (PARSER_V2)';
   if (deployTs.startsWith('__')) {
     el.textContent = 'Local dev';
   } else {
@@ -405924,6 +405924,16 @@ function renderOverlapTab() {
 </script>
 
 <script id="v2-pin-js">
+/*
+  Two-phase freeze:
+  - Phase 1 (pre-pin): boxes remain in normal flow. Toggling freeze on
+    causes no visual change; placeholders are inserted but hidden.
+  - Phase 2 (pinned): once the user scrolls far enough that the boxes
+    would slide under the header, they detach to position:fixed below
+    the header. Placeholders take their grid slots so nothing jumps.
+    A page-colored backdrop with a thin border at its bottom edge sits
+    behind the floating boxes.
+*/
 (function(){
   var backdrop = null;
   function ensureBackdrop() {
@@ -405934,75 +405944,133 @@ function renderOverlapTab() {
     }
     return backdrop;
   }
-  function measureAndApply(panel, targets) {
-    var rects = targets.map(function(b){ return b.getBoundingClientRect(); });
+  function getPinTop() {
     var header = document.querySelector('.header');
     var headerH = header ? header.getBoundingClientRect().height : 60;
-    var pinTop = headerH + 6;
+    return headerH + 8;
+  }
+  function captureGeometry(state) {
+    var rects = state.targets.map(function(b){ return b.getBoundingClientRect(); });
+    state.pinTop = getPinTop();
     var maxH = 0;
     rects.forEach(function(r){ if (r.height > maxH) maxH = r.height; });
-    var stripH = maxH + 18;
-    document.documentElement.style.setProperty('--pin-top', pinTop + 'px');
-    document.documentElement.style.setProperty('--pin-h', stripH + 'px');
-    panel.style.setProperty('--pin-top', pinTop + 'px');
-    panel.style.setProperty('--pin-h', stripH + 'px');
-    panel.classList.add('pin-active');
-    targets.forEach(function(b, i){
-      b.classList.add('pin-target');
-      b.style.left = rects[i].left + 'px';
-      b.style.width = rects[i].width + 'px';
+    state.stripH = maxH;
+    document.documentElement.style.setProperty('--pin-top', state.pinTop + 'px');
+    document.documentElement.style.setProperty('--pin-h', state.stripH + 'px');
+    state.placeholders.forEach(function(ph, i){
+      ph.style.height = rects[i].height + 'px';
+    });
+    state.targets.forEach(function(b, i){
+      b.dataset.pinLeft = rects[i].left + 'px';
+      b.dataset.pinWidth = rects[i].width + 'px';
     });
   }
-  var activePanels = new Set();
-  function pin(panel, targets) {
-    measureAndApply(panel, targets);
-    ensureBackdrop().classList.add('active');
-    activePanels.add({ panel: panel, targets: targets });
+  function ensurePlaceholders(state) {
+    state.placeholders = state.targets.map(function(t){
+      var ph = t.previousElementSibling;
+      if (!ph || !ph.classList || !ph.classList.contains('pin-placeholder')) {
+        ph = document.createElement('div');
+        ph.className = 'pin-placeholder';
+        t.parentNode.insertBefore(ph, t);
+      }
+      ph.style.display = 'none';
+      return ph;
+    });
   }
-  function unpin(panel, targets) {
-    panel.classList.remove('pin-active');
-    targets.forEach(function(b){
-      b.classList.remove('pin-target');
+  function enterPinned(state) {
+    if (state.pinned) return;
+    state.pinned = true;
+    state.placeholders.forEach(function(ph){ ph.style.display = ''; });
+    state.targets.forEach(function(b){
+      b.style.left = b.dataset.pinLeft || '';
+      b.style.width = b.dataset.pinWidth || '';
+      b.classList.add('is-pinned');
+    });
+    ensureBackdrop().classList.add('active');
+  }
+  function exitPinned(state) {
+    if (!state.pinned) return;
+    state.pinned = false;
+    state.targets.forEach(function(b){
+      b.classList.remove('is-pinned');
       b.style.left = '';
       b.style.width = '';
-      b.style.position = '';
     });
-    panel.style.removeProperty('--pin-top');
-    panel.style.removeProperty('--pin-h');
-    activePanels.forEach(function(entry){ if (entry.panel === panel) activePanels.delete(entry); });
-    if (activePanels.size === 0) {
-      if (backdrop) backdrop.classList.remove('active');
+    state.placeholders.forEach(function(ph){ ph.style.display = 'none'; });
+    var anyPinned = false;
+    activeStates.forEach(function(s){ if (s.pinned) anyPinned = true; });
+    if (!anyPinned && backdrop) backdrop.classList.remove('active');
+  }
+  function evaluate(state) {
+    if (!state.frozen) return;
+    var ref = state.pinned ? state.placeholders[0] : state.targets[0];
+    if (!ref) return;
+    var naturalTop = ref.getBoundingClientRect().top;
+    if (naturalTop <= state.pinTop) enterPinned(state);
+    else exitPinned(state);
+  }
+  var activeStates = new Set();
+  function freezeOn(state) {
+    if (state.frozen) return;
+    state.frozen = true;
+    state.panel.classList.add('pin-active');
+    ensurePlaceholders(state);
+    captureGeometry(state);
+    activeStates.add(state);
+    evaluate(state);
+  }
+  function freezeOff(state) {
+    if (!state.frozen) return;
+    state.frozen = false;
+    exitPinned(state);
+    state.panel.classList.remove('pin-active');
+    state.placeholders.forEach(function(ph){
+      if (ph.parentNode) ph.parentNode.removeChild(ph);
+    });
+    state.placeholders = [];
+    state.targets.forEach(function(b){
+      delete b.dataset.pinLeft;
+      delete b.dataset.pinWidth;
+    });
+    activeStates.delete(state);
+    if (activeStates.size === 0) {
       document.documentElement.style.removeProperty('--pin-top');
       document.documentElement.style.removeProperty('--pin-h');
     }
   }
   function wire(cbId) {
     var cb = document.getElementById(cbId);
-    if (!cb) return;
+    if (!cb) return null;
     var seniorityBox = cb.closest('.control-box');
-    if (!seniorityBox) return;
+    if (!seniorityBox) return null;
     var panel = seniorityBox.parentElement;
-    if (!panel) return;
+    if (!panel) return null;
     var boxes = panel.querySelectorAll(':scope > .control-box');
     var targets = [];
     for (var i = 0; i < Math.min(2, boxes.length); i++) {
       targets.push(boxes[i]);
     }
+    var state = {
+      cb: cb,
+      panel: panel,
+      targets: targets,
+      placeholders: [],
+      frozen: false,
+      pinned: false,
+      pinTop: 0,
+      stripH: 0
+    };
     cb.addEventListener('change', function(){
-      if (cb.checked) pin(panel, targets);
-      else unpin(panel, targets);
+      if (cb.checked) freezeOn(state);
+      else freezeOff(state);
     });
+    return state;
   }
   function recompute() {
-    activePanels.forEach(function(entry){
-      entry.panel.classList.remove('pin-active');
-      entry.targets.forEach(function(b){
-        b.classList.remove('pin-target');
-        b.style.left = '';
-        b.style.width = '';
-      });
-      void entry.panel.offsetWidth;
-      measureAndApply(entry.panel, entry.targets);
+    activeStates.forEach(function(state){
+      exitPinned(state);
+      captureGeometry(state);
+      evaluate(state);
     });
   }
   var resizeTimer = null;
@@ -406010,21 +406078,29 @@ function renderOverlapTab() {
     if (resizeTimer) clearTimeout(resizeTimer);
     resizeTimer = setTimeout(recompute, 80);
   });
-  function uncheckAndUnpin(cbId) {
-    var cb = document.getElementById(cbId);
-    if (!cb || !cb.checked) return;
-    cb.checked = false;
-    cb.dispatchEvent(new Event('change'));
+  var scrollTicking = false;
+  window.addEventListener('scroll', function(){
+    if (scrollTicking) return;
+    scrollTicking = true;
+    requestAnimationFrame(function(){
+      scrollTicking = false;
+      activeStates.forEach(evaluate);
+    });
+  }, { passive: true });
+  function uncheckAndUnpin(state) {
+    if (!state || !state.cb || !state.cb.checked) return;
+    state.cb.checked = false;
+    state.cb.dispatchEvent(new Event('change'));
   }
   function init() {
-    wire('freeze-seniority');
-    wire('freeze-seniority-liq');
+    var stressState = wire('freeze-seniority');
+    var liqState = wire('freeze-seniority-liq');
     var viewTabs = document.getElementById('viewTabs');
     if (viewTabs) {
       viewTabs.addEventListener('click', function(e){
         if (!e.target.dataset || !e.target.dataset.view) return;
-        uncheckAndUnpin('freeze-seniority');
-        uncheckAndUnpin('freeze-seniority-liq');
+        uncheckAndUnpin(stressState);
+        uncheckAndUnpin(liqState);
       });
     }
   }
