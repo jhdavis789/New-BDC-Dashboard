@@ -405142,9 +405142,12 @@ function renderOverlapTab() {
 
 function showOverlapPopup(D, rowBDC, colBDC) {
   // Group each BDC's positions by dedupe key.
+  // Note: DATA is a top-level const, NOT window.DATA — classic scripts keep
+  // top-level const/let in script scope, not on window.
+  const DATA_ref = (typeof DATA !== 'undefined') ? DATA : (window.DATA || null);
   function groupByKey(bdc) {
     const out = {};
-    const rows = (window.DATA && window.DATA.positions && window.DATA.positions[bdc]) || [];
+    const rows = (DATA_ref && DATA_ref.positions && DATA_ref.positions[bdc]) || [];
     for (const p of rows) {
       const cid = D.raw_to_cid[bdc + '::' + p.n];
       if (!cid) continue;
@@ -405303,7 +405306,7 @@ function showOverlapPopup(D, rowBDC, colBDC) {
 (function() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#999;z-index:1000;pointer-events:none';
-  const deployTs = 'May 18, 2026 5:38 PM PDT · v3 data (PARSER_V2)';
+  const deployTs = 'May 18, 2026 5:41 PM PDT · v3 data (PARSER_V2)';
   if (deployTs.startsWith('__')) {
     el.textContent = 'Local dev';
   } else {
