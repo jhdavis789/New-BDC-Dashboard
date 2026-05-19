@@ -8022,7 +8022,12 @@ function computeBondMetrics() {
     const avgSpread = bonds.reduce((s, b) => s + b.creditSpread, 0) / bonds.length;
     const wavgSpread = bonds.reduce((s, b) => s + b.creditSpread * b.amount, 0) / totalAmt;
     const wavgMat = bonds.reduce((s, b) => s + b.yearsToMat * b.amount, 0) / totalAmt;
-    const wavgPrice = bonds.reduce((s, b) => s + b.marketPrice * b.amount, 0) / totalAmt;
+    // wavgPrice ignores bonds with null price (filing_supplement may lack carrying-value mark)
+    const _pricedBonds = bonds.filter(b => b.marketPrice != null);
+    const _pricedAmt = _pricedBonds.reduce((s, b) => s + b.amount, 0);
+    const wavgPrice = _pricedAmt > 0
+      ? _pricedBonds.reduce((s, b) => s + b.marketPrice * b.amount, 0) / _pricedAmt
+      : null;
 
     // Fundamental metrics
     const totalDebt = cap.total_debt || (cap.secured_debt + cap.unsecured_debt);
@@ -8274,7 +8279,8 @@ function renderBondTable() {
     for (let i = 0; i < m.bonds.length; i++) {
       const b = m.bonds[i];
       const showBDC = i === 0;
-      const priceColor = b.marketPrice >= 100 ? '#27ae60' : b.marketPrice >= 95 ? '#e67e22' : '#c0392b';
+      const hasPrice = b.marketPrice != null;
+      const priceColor = !hasPrice ? '#999' : b.marketPrice >= 100 ? '#27ae60' : b.marketPrice >= 95 ? '#e67e22' : '#c0392b';
       html += '<tr>';
       html += showBDC
         ? `<td rowspan="${m.bonds.length + 1}"><span class="badge" style="background:${BDC_COLORS[t] || '#999'}">${t}</span></td><td rowspan="${m.bonds.length + 1}" style="color:${ratingColor};font-weight:600">${m.rating}</td>`
@@ -8304,7 +8310,7 @@ function renderBondTable() {
       html += `<td class="right" style="font-size:11px">${b.maturity}</td>`;
       html += `<td class="right">${b.yearsToMat.toFixed(1)}</td>`;
       html += `<td class="right" style="color:#888">${b.tsyRate.toFixed(2)}%</td>`;
-      html += `<td class="right" style="color:${priceColor};font-weight:500">$${b.marketPrice.toFixed(2)}</td>`;
+      html += `<td class="right" style="color:${priceColor};font-weight:500">${hasPrice ? '$'+b.marketPrice.toFixed(2) : '<span style="color:#ccc">--</span>'}</td>`;
       html += `<td class="right"${intpMark} style="font-weight:600${b.interpolated ? ';font-style:italic;color:#b5a16a' : ''}">${b.marketYield.toFixed(2)}%${b.interpolated ? '*' : ''}</td>`;
       html += `<td class="right" style="font-weight:600${b.interpolated ? ';font-style:italic;color:#b5a16a' : ''}">${b.creditSpread > 0 ? '+' : ''}${b.creditSpread} bps${b.interpolated ? '*' : ''}</td>`;
       html += '</tr>';
@@ -8713,7 +8719,7 @@ function showOverlapPopup(D, rowBDC, colBDC) {
 (function() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#999;z-index:1000;pointer-events:none';
-  const deployTs = 'May 18, 2026 10:12 PM PDT · v3 data (PARSER_V2)';
+  const deployTs = 'May 18, 2026 10:16 PM PDT · v3 data (PARSER_V2)';
   if (deployTs.startsWith('__')) {
     el.textContent = 'Local dev';
   } else {
