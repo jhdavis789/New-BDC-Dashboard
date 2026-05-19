@@ -954,11 +954,31 @@
   <h1>BDC Portfolio Stress Test</h1>
   <div class="tab-group" id="bdcTabs">
     <button class="active" data-bdc="ALL">ALL</button>
-    <button data-bdc="ARCC">ARCC</button>
-    <button data-bdc="BXSL">BXSL</button>
-    <button data-bdc="FSK">FSK</button>
-    <button data-bdc="GBDC">GBDC</button>
-    <button data-bdc="OBDC">OBDC</button>
+    <span id="comparisonTickerSlots" style="display:contents">
+      <button data-bdc="ARCC">ARCC</button>
+      <button data-bdc="BXSL">BXSL</button>
+      <button data-bdc="FSK">FSK</button>
+      <button data-bdc="GBDC">GBDC</button>
+      <button data-bdc="OBDC">OBDC</button>
+    </span>
+    <button id="compareOthersBtn" data-action="compare-others" title="Swap which BDCs appear in the Portfolio &amp; Capital Structure Comparison" style="background:#fff;border:1px dashed #999;color:#555;font-style:italic">+ Compare Others</button>
+  </div>
+
+  <!-- Compare Others modal -->
+  <div id="compareOthersModal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.45);justify-content:center;align-items:center">
+    <div style="background:#fff;border-radius:10px;padding:24px 28px;box-shadow:0 12px 40px rgba(0,0,0,0.2);max-width:560px;width:90%;max-height:85vh;overflow-y:auto;position:relative">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <strong style="color:#333;font-size:14px">Choose 5 BDCs to compare</strong>
+        <span id="compareOthersClose" style="cursor:pointer;color:#888;font-size:20px;line-height:1">&times;</span>
+      </div>
+      <p style="font-size:11px;color:#888;margin:0 0 12px">These tickers appear as comparison tabs and in the <em>Portfolio &amp; Capital Structure Comparison</em> grid. The Debt Waterfall and BDC Bond Market always show every BDC.</p>
+      <div id="compareOthersCount" style="font-size:11px;color:#666;margin-bottom:8px"></div>
+      <div id="compareOthersChecklist" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px 14px;margin-bottom:16px"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="compareOthersReset" style="padding:6px 12px;border:1px solid #ccc;background:#f5f5f5;border-radius:4px;cursor:pointer;font-size:12px">Reset to default</button>
+        <button id="compareOthersApply" style="padding:6px 14px;border:1px solid #4A7FB5;background:#4A7FB5;color:#fff;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600">Apply</button>
+      </div>
+    </div>
   </div>
   <div class="spacer"></div>
   <div class="tab-group" id="viewTabs">
@@ -398741,6 +398761,9 @@ function fmtPct(n) {
 // ======== STATE ========
 let selectedBDC = "ALL";
 let selectedView = "stress";
+const DEFAULT_COMPARISON_TICKERS = ["ARCC","BXSL","FSK","GBDC","OBDC"];
+const COMPARISON_SLOT_COUNT = 5;
+let comparisonTickers = DEFAULT_COMPARISON_TICKERS.slice();
 let maturityHorizonYears = 0;
 let _fastRAF = null;
 let _fullTimer = null;
@@ -398757,11 +398780,17 @@ let naCompanyLevel = false;
   if (urlView && VIEWS.includes(urlView)) selectedView = urlView;
   if (urlBdc && (urlBdc === 'ALL' || (Array.isArray(DATA.tickers) && DATA.tickers.includes(urlBdc)))) {
     selectedBDC = urlBdc;
+    // If URL targets a BDC outside the default comparison set, swap it in so a tab exists
+    if (selectedBDC !== 'ALL' && !comparisonTickers.includes(selectedBDC)) {
+      comparisonTickers[comparisonTickers.length - 1] = selectedBDC;
+    }
   }
   // Liquidity view requires a specific BDC — mirrors existing tab-switch logic
   if (selectedView === 'liquidity' && selectedBDC === 'ALL') {
     selectedBDC = DATA.tickers[0];
   }
+  // Rebuild comparison ticker slot in case URL swapped a non-default BDC in
+  if (typeof renderComparisonTabs === 'function') renderComparisonTabs();
   // Sync button/panel .active classes so initial render matches URL (no flash)
   document.querySelectorAll('#bdcTabs button').forEach(b => b.classList.toggle('active', b.dataset.bdc === selectedBDC));
   document.querySelectorAll('#viewTabs button').forEach(b => b.classList.toggle('active', b.dataset.view === selectedView));
@@ -400383,8 +400412,8 @@ function updateStacks() {
     container.innerHTML = html;
 
   } else {
-    // ─── ALL-BDC VIEW (existing multi-BDC grid) ───
-    const tickers = DATA.tickers;
+    // ─── ALL-BDC VIEW (multi-BDC grid limited to the 5 selected comparison tickers) ───
+    const tickers = comparisonTickers.filter(t => DATA.portfolios[t]);
     const n = tickers.length;
     let html = `<div class="stacks-grid" style="grid-template-columns: 100px repeat(${n}, 1fr 1fr)">`;
 
@@ -400966,8 +400995,74 @@ function renderNATab() {
   bindExpandRows('naTable');
 }
 
+// ======== COMPARISON TICKER PICKER ========
+function renderComparisonTabs() {
+  const slot = document.getElementById('comparisonTickerSlots');
+  if (!slot) return;
+  slot.innerHTML = comparisonTickers
+    .map(t => `<button data-bdc="${t}"${t === selectedBDC ? ' class="active"' : ''}>${t}</button>`)
+    .join('');
+}
+
+function openCompareOthersModal() {
+  const modal = document.getElementById('compareOthersModal');
+  const list = document.getElementById('compareOthersChecklist');
+  const countEl = document.getElementById('compareOthersCount');
+  const pending = new Set(comparisonTickers);
+  function refreshCount() {
+    countEl.textContent = `Selected ${pending.size} of ${COMPARISON_SLOT_COUNT}`;
+    countEl.style.color = pending.size === COMPARISON_SLOT_COUNT ? '#666' : '#c0392b';
+    document.getElementById('compareOthersApply').disabled = pending.size !== COMPARISON_SLOT_COUNT;
+    document.getElementById('compareOthersApply').style.opacity = pending.size === COMPARISON_SLOT_COUNT ? '1' : '0.5';
+  }
+  list.innerHTML = DATA.tickers
+    .map(t => `<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:3px 4px"><input type="checkbox" data-ticker="${t}"${pending.has(t) ? ' checked' : ''}> ${t}</label>`)
+    .join('');
+  list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const t = cb.dataset.ticker;
+      if (cb.checked) pending.add(t); else pending.delete(t);
+      if (pending.size > COMPARISON_SLOT_COUNT) {
+        cb.checked = false;
+        pending.delete(t);
+      }
+      refreshCount();
+    });
+  });
+  refreshCount();
+  modal.style.display = 'flex';
+
+  const apply = () => {
+    if (pending.size !== COMPARISON_SLOT_COUNT) return;
+    const kept = comparisonTickers.filter(t => pending.has(t));
+    const added = DATA.tickers.filter(t => pending.has(t) && !kept.includes(t));
+    comparisonTickers = kept.concat(added);
+    if (selectedBDC !== 'ALL' && !comparisonTickers.includes(selectedBDC)) {
+      selectedBDC = 'ALL';
+      document.querySelector('#bdcTabs button[data-bdc="ALL"]').classList.add('active');
+    }
+    renderComparisonTabs();
+    modal.style.display = 'none';
+    if (typeof refreshAll === 'function') refreshAll();
+  };
+  document.getElementById('compareOthersApply').onclick = apply;
+  document.getElementById('compareOthersReset').onclick = () => {
+    pending.clear();
+    DEFAULT_COMPARISON_TICKERS.forEach(t => pending.add(t));
+    list.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = pending.has(cb.dataset.ticker); });
+    refreshCount();
+  };
+}
+document.getElementById('compareOthersClose').addEventListener('click', () => {
+  document.getElementById('compareOthersModal').style.display = 'none';
+});
+document.getElementById('compareOthersModal').addEventListener('click', e => {
+  if (e.target.id === 'compareOthersModal') e.currentTarget.style.display = 'none';
+});
+
 // ======== TAB SWITCHING ========
 document.getElementById('bdcTabs').addEventListener('click', e => {
+  if (e.target.dataset.action === 'compare-others') { openCompareOthersModal(); return; }
   if (!e.target.dataset.bdc) return;
   selectedBDC = e.target.dataset.bdc;
   // Liquidity tab requires a single BDC — redirect ALL to first ticker
@@ -405401,7 +405496,7 @@ function showOverlapPopup(D, rowBDC, colBDC) {
 (function() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#999;z-index:1000;pointer-events:none';
-  const deployTs = 'May 18, 2026 6:00 PM PDT · v3 data (PARSER_V2)';
+  const deployTs = 'May 18, 2026 6:35 PM PDT · v3 data (PARSER_V2)';
   if (deployTs.startsWith('__')) {
     el.textContent = 'Local dev';
   } else {
