@@ -397573,7 +397573,6 @@ const DATA = {
       "GBDC": "BBB-",
       "GCRED": "BBB-",
       "OSCF": "BBB-",
-      "OTIC": "BBB-",
       "MAIN": "BBB-"
     },
     "trading": {
@@ -398636,41 +398635,6 @@ const DATA = {
           "amount": 400000000,
           "cusip": "67403AAF6",
           "source": "filing_fv"
-        }
-      ],
-      "OTIC": [
-        {
-          "coupon": 8.25,
-          "maturity": "2026-07-06",
-          "price": 100.0,
-          "ytm": null,
-          "amount": 100000000,
-          "cusip": null,
-          "source": "filing_fv"
-        },
-        {
-          "coupon": 8.0,
-          "maturity": "2027-01-15",
-          "price": 100.0,
-          "ytm": null,
-          "amount": 75000000,
-          "cusip": null,
-          "source": "filing_fv",
-          "floating": true,
-          "coupon_spec": "SOFR + 4.45% (variable, floor 1.00%)",
-          "sofr_used": 3.55
-        },
-        {
-          "coupon": 8.3,
-          "maturity": "2029-01-15",
-          "price": 100.0,
-          "ytm": null,
-          "amount": 100000000,
-          "cusip": null,
-          "source": "filing_fv",
-          "floating": true,
-          "coupon_spec": "SOFR + 4.75% (variable, floor 1.00%)",
-          "sofr_used": 3.55
         }
       ],
       "MAIN": [
@@ -405339,7 +405303,7 @@ function showOverlapPopup(D, rowBDC, colBDC) {
 (function() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#999;z-index:1000;pointer-events:none';
-  const deployTs = 'May 18, 2026 5:32 PM PDT · v3 data (PARSER_V2)';
+  const deployTs = 'May 18, 2026 5:38 PM PDT · v3 data (PARSER_V2)';
   if (deployTs.startsWith('__')) {
     el.textContent = 'Local dev';
   } else {
