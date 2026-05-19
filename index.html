@@ -1316,7 +1316,7 @@
         <p><strong>Credit spread</strong> = market YTM &minus; maturity-matched treasury rate. Treasury curve interpolated from FRED (2yr/5yr/10yr, fetched live).</p>
         <p style="margin-top:8px"><strong>X-axis metrics explained:</strong></p>
         <table style="width:100%;border-collapse:collapse;font-size:11px;margin:4px 0 8px">
-          <tr style="border-bottom:1px solid #eee"><td style="padding:3px 0;color:#555;font-weight:600;white-space:nowrap;vertical-align:top">Debt/Equity Leverage</td><td style="padding:3px 0 3px 8px;color:#777">Total debt / equity. Higher = more levered.</td></tr>
+          <tr style="border-bottom:1px solid #eee"><td style="padding:3px 0;color:#555;font-weight:600;white-space:nowrap;vertical-align:top">Stressed Debt/Equity Leverage</td><td style="padding:3px 0 3px 8px;color:#777">Total debt / post-stress equity. Portfolio loss flows directly to equity, so this number rises as the stress sliders bite. Baseline at zero stress. If equity is wiped, displayed as &infin; (insolvent).</td></tr>
           <tr style="border-bottom:1px solid #eee"><td style="padding:3px 0;color:#555;font-weight:600;white-space:nowrap;vertical-align:top">Equity Cushion</td><td style="padding:3px 0 3px 8px;color:#777">Equity / total assets. How far assets can fall before any debt is impaired. BDC regulatory min is ~33% (150% asset coverage).</td></tr>
           <tr style="border-bottom:1px solid #eee"><td style="padding:3px 0;color:#555;font-weight:600;white-space:nowrap;vertical-align:top">Asset Coverage: Total Debt</td><td style="padding:3px 0 3px 8px;color:#777">Total assets / total borrowings. BDC regulatory minimum is 150%. This is the standard 1940 Act coverage test.</td></tr>
           <tr style="border-bottom:1px solid #eee"><td style="padding:3px 0;color:#555;font-weight:600;white-space:nowrap;vertical-align:top">Coverage: All Liabilities</td><td style="padding:3px 0 3px 8px;color:#777">Total assets / total liabilities (debt + other liabilities like payables, deferred income). Stricter than the debt-only coverage.</td></tr>
@@ -1338,7 +1338,7 @@
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
           <span style="font-size:12px;color:#888;font-weight:500">Chart:</span>
           <select id="bondXAxis" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;background:#fff">
-            <option value="leverage">Debt/Equity Leverage</option>
+            <option value="leverage">Stressed Debt/Equity Leverage</option>
             <option value="equity_cushion">Equity Cushion (% of Assets)</option>
             <option value="base_coverage">Asset Coverage: Total Debt</option>
             <option value="stressed_coverage">Stressed Asset Coverage: Total Debt</option>
@@ -402594,11 +402594,20 @@ function computeCashFlowProjection(ticker) {
       if (entry.inflows.cashOnHand < 0) entry.inflows.cashOnHand = 0;
     }
 
-    // Undrawn revolvers: subtract excluded facilities (year 1 only)
+    // Undrawn revolvers: subtract excluded facilities (year 1 only).
+    // Keep REVOLVER_TYPES in sync with stress_test.py — recourse RCF, secured
+    // corporate facility, legacy short name, and SPV facilities all disclose
+    // undrawn capacity as liquidity and roll instead of paying down.
     if (yr === firstYr) {
+      const REVOLVER_TYPES = new Set([
+        'revolving_credit',
+        'revolving_credit_facility',
+        'secured_credit_facility',
+        'spv_facility',
+      ]);
       const risk = typeof liqRevolverRisk !== 'undefined' ? liqRevolverRisk : 0;
       for (const inst of (liq.debt_instruments || [])) {
-        if (inst.type !== 'revolving_credit' && inst.type !== 'secured_credit_facility') continue;
+        if (!REVOLVER_TYPES.has(inst.type)) continue;
         if (isLineExcluded('revolverCapacity', inst.name)) {
           entry.inflows.revolverCapacity -= (inst.undrawn || 0) * (1 - risk / 100);
         }
@@ -404877,7 +404886,7 @@ function computeBondMetrics() {
     // Fundamental metrics
     const totalDebt = cap.total_debt || (cap.secured_debt + cap.unsecured_debt);
     const totalLiab = cap.total_liabilities || (totalDebt + cap.other_liabilities);
-    const leverage = totalDebt > 0 && cap.equity > 0 ? totalDebt / cap.equity : 0;
+    const baseLeverage = totalDebt > 0 && cap.equity > 0 ? totalDebt / cap.equity : 0;
     // Asset coverage: total assets / total debt (BDC regulatory test is 150% min)
     const baseCoverage = totalDebt > 0 ? (cap.total_assets / totalDebt) * 100 : 0;
     // Total liabilities coverage: total assets / all liabilities (debt + other)
@@ -404893,12 +404902,22 @@ function computeBondMetrics() {
     let stressedLiabCoverage = totalLiabCoverage;
     let stressedUnsecuredCoverage = unsecuredCoverage;
     let stressedUnsecuredRecovery = 100;
+    let stressedLeverage = baseLeverage;
+    let leverageWiped = false;
     let lossPct = 0;
     if (_computed && _computed.lossByBDC[t] != null) {
       const loss = _computed.lossByBDC[t];
       const postAssets = cap.total_assets - loss;
+      const postEquity = cap.equity - loss;
       stressedCoverage = totalDebt > 0 ? (postAssets / totalDebt) * 100 : 0;
       stressedLiabCoverage = totalLiab > 0 ? (postAssets / totalLiab) * 100 : 0;
+      // Stressed D/E: portfolio loss flows directly to equity. If equity is wiped, mark insolvent.
+      if (totalDebt > 0 && postEquity > 0) {
+        stressedLeverage = totalDebt / postEquity;
+      } else if (totalDebt > 0) {
+        stressedLeverage = 100; // cap for chart axis; insolvent
+        leverageWiped = true;
+      }
       lossPct = cap.total_investments > 0 ? (loss / cap.total_investments) * 100 : 0;
       // Stressed unsecured bond coverage: waterfall (secured first, then unsecured)
       const postPoolForUnsecured = Math.max(0, postAssets - cap.secured_debt - cap.other_liabilities);
@@ -404910,7 +404929,8 @@ function computeBondMetrics() {
     metrics[t] = {
       bonds, rating, isHY,
       totalAmt, avgYield, wavgYield, avgSpread, wavgSpread, wavgMat, wavgPrice,
-      leverage, baseCoverage, stressedCoverage, unsecuredPct, lossPct,
+      leverage: stressedLeverage, baseLeverage, leverageWiped,
+      baseCoverage, stressedCoverage, unsecuredPct, lossPct,
       totalLiabCoverage, stressedLiabCoverage, equityCushion,
       unsecuredCoverage, stressedUnsecuredCoverage, stressedUnsecuredRecovery,
     };
@@ -404942,7 +404962,7 @@ function renderBondCharts() {
   const colors = tickers.map(t => BDC_COLORS[t] || '#999');
 
   const xMap = {
-    leverage: { label: 'Debt/Equity Leverage', fn: m => m.leverage, fmt: v => v.toFixed(2) + 'x' },
+    leverage: { label: 'Stressed Debt/Equity Leverage', fn: m => m.leverage, fmt: v => v >= 100 ? '∞ (wiped)' : v.toFixed(2) + 'x' },
     equity_cushion: { label: 'Equity Cushion (% of Assets)', fn: m => m.equityCushion, fmt: v => v.toFixed(1) + '%' },
     base_coverage: { label: 'Asset Coverage: Total Debt', fn: m => m.baseCoverage, fmt: v => v.toFixed(0) + '%' },
     stressed_coverage: { label: 'Stressed Asset Coverage: Total Debt', fn: m => m.stressedCoverage, fmt: v => v.toFixed(0) + '%' },
@@ -405525,7 +405545,7 @@ function showOverlapPopup(D, rowBDC, colBDC) {
 (function() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#999;z-index:1000;pointer-events:none';
-  const deployTs = 'May 18, 2026 6:46 PM PDT · v3 data (PARSER_V2)';
+  const deployTs = 'May 18, 2026 6:55 PM PDT · v3 data (PARSER_V2)';
   if (deployTs.startsWith('__')) {
     el.textContent = 'Local dev';
   } else {
