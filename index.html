@@ -1765,10 +1765,7 @@
           <button data-overlap-view="cosine_beta" style="padding:4px 10px;border:none;background:#fdfcf9;color:#1f2937;cursor:pointer;border-left:1px solid #d1d5db">Co-Move β</button>
         </span>
       </div>
-      <div style="font-size:12px;color:#666;margin-top:4px;max-width:900px;line-height:1.5">
-        Each cell (row=A, col=B) = % of <em>row</em> fund's fair value held in operating companies that <em>column</em> fund also holds.
-        Asymmetric (so row&rarr;col &ne; col&rarr;row). Built from a CID universe of 3,587 unique securities, deduped to the true underlying operating company via per-CID research. CLOs, money-market funds, and securitization SPVs are excluded; unresearched names and catch-all underlyings are kept as their own per-CID bucket (so they do not spuriously collide).
-      </div>
+      <div id="overlapViewDesc" style="font-size:12px;color:#444;margin-top:4px;max-width:1100px;line-height:1.5;padding:8px 12px;background:#f9fafb;border-left:3px solid #1f2937;border-radius:3px"></div>
       <div style="font-size:11px;color:#888;margin-top:6px">Q1 2026 fair values. 2,940 of 3,587 CIDs included (647 funds/CLOs excluded).</div>
     </div>
 
@@ -405208,6 +405205,12 @@ function colorForCosine(v) {
   return ['rgb('+r+','+g+','+bl+')', t];
 }
 
+const OVERLAP_VIEW_DESC = {
+  overlap:     '<b>Overlap %</b> — each cell (row=A, col=B) is the % of <em>row</em> fund\'s Q1 2026 fair value held in operating companies that <em>column</em> fund also holds. Asymmetric (row→col ≠ col→row): if A is much smaller than B, A→B can be near 100% while B→A is single-digit. Built from a CID universe of 3,587 securities deduped to the underlying operating company via ~3,500 LLM agent verdicts; CLOs / money-market funds / securitization SPVs are excluded; catch-all underlyings ("Unknown," etc.) are isolated per-CID so they can\'t spuriously collide.',
+  cosine:      '<b>Co-Move</b> — cosine similarity of the two funds\' FV-weight vectors over the deduped company universe. Each company is weighted by its share of the fund\'s total FV, so a 3% shared position counts more than a 0.1% shared position. Range 0..1 (1 = identical weight distribution). Symmetric. Assumes each company has an iid return with equal variance — useful as a "would these two NAVs move together" first-pass, but ignores sector, leverage, and capital-structure differences.',
+  cosine_beta: '<b>Co-Move β</b> — same cosine, but each position is first re-weighted by an estimated beta from instrument type and spread: senior secured 1.0, Unitranche 1.05, 2L 1.4, Unsec 1.5, Preferred 1.7, Equity 2.5, Warrant 3.0, Revolver/DDTL 0.75–0.85; every 100 bps of spread above SOFR+400 adds ~17%. Surfaces shared <em>risk-bearing</em> exposure rather than raw FV exposure. The beta values are credit-market heuristics, not empirically fitted — directionally right, not precise.'
+};
+
 function renderOverlapMatrix() {
   const host = document.getElementById('overlapHost');
   if (!host || !_overlapData) return;
@@ -405217,6 +405220,8 @@ function renderOverlapMatrix() {
   const M = view === 'overlap' ? D.matrix
           : view === 'cosine' ? D.cosine
           : D.cosine_beta;
+  const desc = document.getElementById('overlapViewDesc');
+  if (desc) desc.innerHTML = OVERLAP_VIEW_DESC[view] || '';
   const fmt = view === 'overlap'
     ? (v) => v.toFixed(1) + '%'
     : (v) => v.toFixed(2);
@@ -405496,7 +405501,7 @@ function showOverlapPopup(D, rowBDC, colBDC) {
 (function() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#999;z-index:1000;pointer-events:none';
-  const deployTs = 'May 18, 2026 6:35 PM PDT · v3 data (PARSER_V2)';
+  const deployTs = 'May 18, 2026 6:41 PM PDT · v3 data (PARSER_V2)';
   if (deployTs.startsWith('__')) {
     el.textContent = 'Local dev';
   } else {
