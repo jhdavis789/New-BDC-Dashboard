@@ -1734,6 +1734,14 @@
   </div>
   <!-- CROSS-HOLDINGS (OVERLAP) TAB -->
   <div class="view-panel" id="panel-overlap">
+    <div style="margin:12px 0 0;padding:10px 14px;background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:4px;display:flex;align-items:flex-start;gap:10px;max-width:1100px;font-size:12px;line-height:1.5;color:#7f1d1d">
+      <span style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#dc2626;color:#fff;font-weight:700;font-size:14px;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;line-height:1;margin-top:1px">!</span>
+      <div>
+        <div style="font-weight:600;color:#991b1b;margin-bottom:2px">Methodology &amp; risk</div>
+        BDCs file portfolio holdings under LBO shell names ("Project Phoenix Buyer, Inc.," "Paisley Bidco, Ltd.," etc.) rather than the underlying operating company. To produce this overlap matrix, an LLM-based research agent was run on every CID in the universe — it climbs the capital structure (sponsor press releases, dba/fka tags, public filings) and assigns each shell to its underlying business and sponsor. <b>~3,500 individual agent verdicts</b> drive the dedupe.
+        <span style="display:block;margin-top:4px">There is <b>real risk of mis-categorization</b>: some shells share generic deal code-names (Bond / MP / Jupiter / etc.); some sponsors are private and unconfirmed; some agent verdicts are low-confidence. Catch-all values ("Unknown," "CLO / ABS issuance series," etc.) are isolated per-CID so they cannot spuriously collide, but a wrongly-resolved underlying name can still create a false-positive or false-negative overlap. Treat single shared-company matches as illustrative, not as audited fact.</span>
+      </div>
+    </div>
     <div style="margin: 12px 0 8px">
       <div style="font-size:15px;font-weight:600;color:#222">Portfolio-Company Overlap Across the 15-BDC Universe</div>
       <div style="font-size:12px;color:#666;margin-top:4px;max-width:900px;line-height:1.5">
@@ -405306,7 +405314,7 @@ function showOverlapPopup(D, rowBDC, colBDC) {
 (function() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#999;z-index:1000;pointer-events:none';
-  const deployTs = 'May 18, 2026 5:41 PM PDT · v3 data (PARSER_V2)';
+  const deployTs = 'May 18, 2026 5:46 PM PDT · v3 data (PARSER_V2)';
   if (deployTs.startsWith('__')) {
     el.textContent = 'Local dev';
   } else {
