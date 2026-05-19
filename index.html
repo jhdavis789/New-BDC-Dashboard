@@ -961,22 +961,24 @@
       <button data-bdc="GBDC">GBDC</button>
       <button data-bdc="OBDC">OBDC</button>
     </span>
-    <button id="compareOthersBtn" data-action="compare-others" title="Swap which BDCs appear in the Portfolio &amp; Capital Structure Comparison" style="background:#fff;border:1px dashed #999;color:#555;font-style:italic">+ Compare Others</button>
+    <button id="compareOthersBtn" data-action="compare-others" title="Choose which 5 BDCs appear in the Portfolio &amp; Capital Structure Comparison" style="background:#f5f5f7;border:1px solid #d2d2d7;color:#1d1d1f;font-weight:500">+ Compare Others</button>
   </div>
 
-  <!-- Compare Others modal -->
-  <div id="compareOthersModal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.45);justify-content:center;align-items:center">
-    <div style="background:#fff;border-radius:10px;padding:24px 28px;box-shadow:0 12px 40px rgba(0,0,0,0.2);max-width:560px;width:90%;max-height:85vh;overflow-y:auto;position:relative">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <strong style="color:#333;font-size:14px">Choose 5 BDCs to compare</strong>
-        <span id="compareOthersClose" style="cursor:pointer;color:#888;font-size:20px;line-height:1">&times;</span>
+  <!-- Compare Others modal (Apple-compare style: 5 dropdown slots) -->
+  <div id="compareOthersModal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.32);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);justify-content:center;align-items:center;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,sans-serif">
+    <div style="background:#fbfbfd;border-radius:18px;padding:32px 36px 28px;box-shadow:0 20px 60px rgba(0,0,0,0.18);max-width:880px;width:92%;max-height:88vh;overflow-y:auto;position:relative">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          <h2 style="margin:0;font-size:22px;font-weight:600;color:#1d1d1f;letter-spacing:-0.01em">Compare BDCs</h2>
+          <p style="font-size:13px;color:#6e6e73;margin:4px 0 0;line-height:1.4">Pick the five BDCs to feature in the <em>Portfolio &amp; Capital Structure Comparison</em> grid. The Debt Waterfall and BDC Bond Market always show every BDC.</p>
+        </div>
+        <span id="compareOthersClose" style="cursor:pointer;color:#86868b;font-size:24px;line-height:1;padding:4px 10px;border-radius:50%;transition:background .15s" onmouseover="this.style.background='#f0f0f2'" onmouseout="this.style.background='transparent'">&times;</span>
       </div>
-      <p style="font-size:11px;color:#888;margin:0 0 12px">These tickers appear as comparison tabs and in the <em>Portfolio &amp; Capital Structure Comparison</em> grid. The Debt Waterfall and BDC Bond Market always show every BDC.</p>
-      <div id="compareOthersCount" style="font-size:11px;color:#666;margin-bottom:8px"></div>
-      <div id="compareOthersChecklist" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px 14px;margin-bottom:16px"></div>
-      <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button id="compareOthersReset" style="padding:6px 12px;border:1px solid #ccc;background:#f5f5f5;border-radius:4px;cursor:pointer;font-size:12px">Reset to default</button>
-        <button id="compareOthersApply" style="padding:6px 14px;border:1px solid #4A7FB5;background:#4A7FB5;color:#fff;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600">Apply</button>
+      <div id="compareOthersSlots" style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:24px;margin-bottom:8px"></div>
+      <div id="compareOthersError" style="font-size:12px;color:#bf4800;min-height:16px;margin-top:8px"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;padding-top:18px;border-top:1px solid #e8e8ed">
+        <button id="compareOthersReset" style="padding:8px 16px;border:none;background:transparent;color:#0071e3;border-radius:980px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit">Reset</button>
+        <button id="compareOthersApply" style="padding:8px 22px;border:none;background:#0071e3;color:#fff;border-radius:980px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;transition:background .15s" onmouseover="this.style.background='#0077ed'" onmouseout="this.style.background='#0071e3'">Done</button>
       </div>
     </div>
   </div>
@@ -401003,37 +401005,62 @@ function renderComparisonTabs() {
 
 function openCompareOthersModal() {
   const modal = document.getElementById('compareOthersModal');
-  const list = document.getElementById('compareOthersChecklist');
-  const countEl = document.getElementById('compareOthersCount');
-  const pending = new Set(comparisonTickers);
-  function refreshCount() {
-    countEl.textContent = `Selected ${pending.size} of ${COMPARISON_SLOT_COUNT}`;
-    countEl.style.color = pending.size === COMPARISON_SLOT_COUNT ? '#666' : '#c0392b';
-    document.getElementById('compareOthersApply').disabled = pending.size !== COMPARISON_SLOT_COUNT;
-    document.getElementById('compareOthersApply').style.opacity = pending.size === COMPARISON_SLOT_COUNT ? '1' : '0.5';
-  }
-  list.innerHTML = DATA.tickers
-    .map(t => `<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:3px 4px"><input type="checkbox" data-ticker="${t}"${pending.has(t) ? ' checked' : ''}> ${t}</label>`)
-    .join('');
-  list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-    cb.addEventListener('change', () => {
-      const t = cb.dataset.ticker;
-      if (cb.checked) pending.add(t); else pending.delete(t);
-      if (pending.size > COMPARISON_SLOT_COUNT) {
-        cb.checked = false;
-        pending.delete(t);
-      }
-      refreshCount();
+  const slotsEl = document.getElementById('compareOthersSlots');
+  const errEl = document.getElementById('compareOthersError');
+  // Pending picks for each of the 5 slots (one BDC per slot, Apple-compare style)
+  let pending = comparisonTickers.slice(0, COMPARISON_SLOT_COUNT);
+  while (pending.length < COMPARISON_SLOT_COUNT) pending.push('');
+
+  function renderSlots() {
+    const dup = new Set();
+    const seen = new Set();
+    pending.forEach(t => { if (t && seen.has(t)) dup.add(t); else if (t) seen.add(t); });
+
+    slotsEl.innerHTML = pending.map((picked, i) => {
+      const isDup = picked && dup.has(picked);
+      const ringColor = isDup ? '#bf4800' : '#d2d2d7';
+      const ringFocus = isDup ? '#bf4800' : '#0071e3';
+      const options = DATA.tickers
+        .map(t => `<option value="${t}"${t === picked ? ' selected' : ''}>${t}</option>`).join('');
+      return `
+        <div style="display:flex;flex-direction:column;align-items:stretch;gap:8px">
+          <div style="font-size:11px;font-weight:500;color:#86868b;text-align:center;letter-spacing:.04em;text-transform:uppercase">Slot ${i+1}</div>
+          <div style="position:relative">
+            <select data-slot="${i}" style="appearance:none;-webkit-appearance:none;width:100%;padding:14px 32px 14px 16px;border-radius:12px;border:1px solid ${ringColor};background:#fff;color:#1d1d1f;font-size:17px;font-weight:600;font-family:inherit;cursor:pointer;letter-spacing:-0.01em;text-align:center;text-align-last:center;transition:border-color .15s,box-shadow .15s" onfocus="this.style.borderColor='${ringFocus}';this.style.boxShadow='0 0 0 4px ${ringFocus}22'" onblur="this.style.borderColor='${ringColor}';this.style.boxShadow='none'">${options}</select>
+            <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:#86868b;font-size:10px">&#9662;</span>
+          </div>
+        </div>`;
+    }).join('');
+
+    slotsEl.querySelectorAll('select').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const i = parseInt(sel.dataset.slot, 10);
+        pending[i] = sel.value;
+        renderSlots();
+      });
     });
-  });
-  refreshCount();
+
+    if (dup.size > 0) {
+      errEl.textContent = `Each slot must pick a different BDC. Duplicate: ${Array.from(dup).join(', ')}.`;
+      applyBtn.disabled = true;
+      applyBtn.style.opacity = '0.4';
+      applyBtn.style.cursor = 'not-allowed';
+    } else {
+      errEl.textContent = '';
+      applyBtn.disabled = false;
+      applyBtn.style.opacity = '1';
+      applyBtn.style.cursor = 'pointer';
+    }
+  }
+
+  const applyBtn = document.getElementById('compareOthersApply');
+  const resetBtn = document.getElementById('compareOthersReset');
+  renderSlots();
   modal.style.display = 'flex';
 
-  const apply = () => {
-    if (pending.size !== COMPARISON_SLOT_COUNT) return;
-    const kept = comparisonTickers.filter(t => pending.has(t));
-    const added = DATA.tickers.filter(t => pending.has(t) && !kept.includes(t));
-    comparisonTickers = kept.concat(added);
+  applyBtn.onclick = () => {
+    if (applyBtn.disabled) return;
+    comparisonTickers = pending.slice();
     if (selectedBDC !== 'ALL' && !comparisonTickers.includes(selectedBDC)) {
       selectedBDC = 'ALL';
       document.querySelector('#bdcTabs button[data-bdc="ALL"]').classList.add('active');
@@ -401042,12 +401069,9 @@ function openCompareOthersModal() {
     modal.style.display = 'none';
     if (typeof refreshAll === 'function') refreshAll();
   };
-  document.getElementById('compareOthersApply').onclick = apply;
-  document.getElementById('compareOthersReset').onclick = () => {
-    pending.clear();
-    DEFAULT_COMPARISON_TICKERS.forEach(t => pending.add(t));
-    list.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = pending.has(cb.dataset.ticker); });
-    refreshCount();
+  resetBtn.onclick = () => {
+    pending = DEFAULT_COMPARISON_TICKERS.slice();
+    renderSlots();
   };
 }
 document.getElementById('compareOthersClose').addEventListener('click', () => {
@@ -405501,7 +405525,7 @@ function showOverlapPopup(D, rowBDC, colBDC) {
 (function() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#999;z-index:1000;pointer-events:none';
-  const deployTs = 'May 18, 2026 6:41 PM PDT · v3 data (PARSER_V2)';
+  const deployTs = 'May 18, 2026 6:46 PM PDT · v3 data (PARSER_V2)';
   if (deployTs.startsWith('__')) {
     el.textContent = 'Local dev';
   } else {
